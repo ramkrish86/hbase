@@ -149,6 +149,11 @@
                                         <exclude>com.google.code.findbugs:*</exclude>
                                         <exclude>com.github.stephenc.findbugs:*</exclude>
                                         <exclude>org.apache.htrace:*</exclude>
+                                        <exclude>io.opentracing:*</exclude>
+                                        <exclude>io.opentracing.contrib:*</exclude>
+                                        <exclude>io.jaegertracing:jaeger-client</exclude>
+                                        <exclude>io.jaegertracing:jaeger-core</exclude>
+                                        <exclude>io.jaegertracing:jaeger-tracerresolver</exclude>
                                         <exclude>org.apache.yetus:*</exclude>
                                         <exclude>log4j:*</exclude>
                                         <exclude>commons-logging:*</exclude>
@@ -443,6 +448,36 @@
                                     <relocation>
                                         <pattern>net/</pattern>
                                         <shadedPattern>${shaded.prefix}.net.</shadedPattern>
+                                    </relocation>
+
+                                    <!-- for jaeger-thrift -->
+                                    <relocation>
+                                        <pattern>io.jaegertracing</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.apache.thrift</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.org.apache.thrift</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>com.twitter.zipkin</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.com.twitter.zipkin</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>okhttp3</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.okhttp3</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>kotlin</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.kotlin</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.intellij</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.org.intellij</shadedPattern>
+                                    </relocation>
+                                    <relocation>
+                                        <pattern>org.jetbrains</pattern>
+                                        <shadedPattern>${shaded.prefix}.io.jaegertracing.org.jetbrains</shadedPattern>
                                     </relocation>
 
                                 </relocations>

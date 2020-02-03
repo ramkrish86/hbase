@@ -17,77 +17,121 @@
  */
 package org.apache.hadoop.hbase.trace;
 
+import io.jaegertracing.Configuration.SamplerConfiguration;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.Tracer;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapExtractAdapter;
+import io.opentracing.propagation.TextMapInjectAdapter;
+import io.opentracing.util.GlobalTracer;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.apache.hadoop.conf.Configuration;
-import org.apache.htrace.core.HTraceConfiguration;
-import org.apache.htrace.core.Sampler;
-import org.apache.htrace.core.Span;
+import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.htrace.core.SpanReceiver;
-import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
 import org.apache.yetus.audience.InterfaceAudience;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This wrapper class provides functions for accessing htrace 4+ functionality in a simplified way.
  */
 @InterfaceAudience.Private
 public final class TraceUtil {
-  private static HTraceConfiguration conf;
+  private static io.jaegertracing.Configuration conf;
+  static final Logger LOG = LoggerFactory.getLogger(TraceUtil.class);
   private static Tracer tracer;
 
   private TraceUtil() {
   }
 
   public static void initTracer(Configuration c) {
-    if (c != null) {
+    /*if (c != null) {
       conf = new HBaseHTraceConfiguration(c);
     }
 
     if (tracer == null && conf != null) {
       tracer = new Tracer.Builder("Tracer").conf(conf).build();
+    }*/
+    if (!GlobalTracer.isRegistered()) {
+      conf = io.jaegertracing.Configuration.fromEnv("Tracer");
+      tracer = conf.getTracerBuilder().build();
+
+      GlobalTracer.register(tracer);
     }
   }
 
-  /**
-   * Wrapper method to create new TraceScope with the given description
-   * @return TraceScope or null when not tracing
-   */
-  public static TraceScope createTrace(String description) {
-    return (tracer == null) ? null : tracer.newScope(description);
+  @VisibleForTesting
+  public static void registerTracerForTest(Tracer tracer) {
+    TraceUtil.tracer = tracer;
+    GlobalTracer.register(tracer);
+  }
+
+  public static Tracer getTracer() {
+    return tracer;
   }
 
   /**
-   * Wrapper method to create new child TraceScope with the given description
+   * Wrapper method to create new Scope with the given description
+   * @return Scope or null when not tracing
+   */
+  public static Scope createTrace(String description) {
+    return (tracer == null) ? null : tracer.buildSpan(description).startActive(true);
+
+  }
+
+  /**
+   * Wrapper method to create new child Scope with the given description
    * and parent scope's spanId
    * @param span parent span
-   * @return TraceScope or null when not tracing
+   * @return Scope or null when not tracing
    */
-  public static TraceScope createTrace(String description, Span span) {
+  public static Scope createTrace(String description, Span span) {
     if (span == null) {
       return createTrace(description);
     }
 
-    return (tracer == null) ? null : tracer.newScope(description, span.getSpanId());
+    return (tracer == null) ? null
+        : tracer.buildSpan(description).asChildOf(span).startActive(true);
+
+  }
+
+  public static Scope createTrace(String description, SpanContext spanContext) {
+    if(spanContext == null) return createTrace(description);
+
+    return (tracer == null) ? null : tracer.buildSpan(description).
+        asChildOf(spanContext).startActive(true);
   }
 
   /**
    * Wrapper method to add new sampler to the default tracer
    * @return true if added, false if it was already added
    */
-  public static boolean addSampler(Sampler sampler) {
+  public static boolean addSampler(SamplerConfiguration sampler) {
     if (sampler == null) {
       return false;
     }
-
-    return (tracer == null) ? false : tracer.addSampler(sampler);
+    //return (tracer == null) ? false : tracer.addSampler(sampler);
+    return false;
   }
 
   /**
    * Wrapper method to add key-value pair to TraceInfo of actual span
    */
   public static void addKVAnnotation(String key, String value){
-    Span span = Tracer.getCurrentSpan();
+    Span span = tracer.activeSpan();
     if (span != null) {
-      span.addKVAnnotation(key, value);
+      span.setTag(key, value);
     }
   }
 
@@ -96,7 +140,8 @@ public final class TraceUtil {
    * @return true if successfull, false if it was already added
    */
   public static boolean addReceiver(SpanReceiver rcvr) {
-    return (tracer == null) ? false : tracer.getTracerPool().addReceiver(rcvr);
+    //return (tracer == null) ? false : tracer.getTracerPool().addReceiver(rcvr);
+    return false;
   }
 
   /**
@@ -104,16 +149,17 @@ public final class TraceUtil {
    * @return true if removed, false if doesn't exist
    */
   public static boolean removeReceiver(SpanReceiver rcvr) {
-    return (tracer == null) ? false : tracer.getTracerPool().removeReceiver(rcvr);
+    //return (tracer == null) ? false : tracer.getTracerPool().removeReceiver(rcvr);
+    return false;
   }
 
   /**
    * Wrapper method to add timeline annotiation to current span with given message
    */
   public static void addTimelineAnnotation(String msg) {
-    Span span = Tracer.getCurrentSpan();
+    Span span = tracer.activeSpan();
     if (span != null) {
-      span.addTimelineAnnotation(msg);
+      span.log(msg);
     }
   }
 
@@ -123,6 +169,61 @@ public final class TraceUtil {
    * @return wrapped runnable or original runnable when not tracing
    */
   public static Runnable wrap(Runnable runnable, String description) {
-    return (tracer == null) ? runnable : tracer.wrap(runnable, description);
+    //return (tracer == null) ? runnable : tracer.wrap(runnable, description);
+    LOG.debug("The provided serialized context was null or empty");
+    return null;
   }
+
+  public static SpanContext byteArrayToSpanContext(byte[] byteArray) {
+    if (byteArray == null || byteArray.length == 0) {
+      LOG.debug("The provided serialized context was null or empty");
+      return null;
+    }
+
+    SpanContext context = null;
+    ByteArrayInputStream stream = new ByteArrayInputStream(byteArray);
+
+    try {
+      ObjectInputStream objStream = new ObjectInputStream(stream);
+      Map<String, String> carrier = (Map<String, String>) objStream.readObject();
+
+      context =
+          GlobalTracer.get().extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+    } catch (Exception e) {
+      LOG.warn("Could not deserialize context {}", e);
+    }
+
+    return context;
+  }
+
+  public static byte[] spanContextToByteArray(SpanContext context) {
+    if (context == null) {
+      LOG.debug("No SpanContext was provided");
+      return null;
+    }
+
+    Map<String, String> carrier = new HashMap<String, String>();
+    GlobalTracer.get().inject(context, Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
+    if (carrier.isEmpty()) {
+      LOG.warn("SpanContext was not properly injected by the Tracer.");
+      return null;
+    }
+
+    byte[] byteArray = null;
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+
+    try {
+      ObjectOutputStream objStream = new ObjectOutputStream(stream);
+      objStream.writeObject(carrier);
+      objStream.flush();
+
+      byteArray = stream.toByteArray();
+      LOG.debug("SpanContext serialized, resulting byte length is {}", byteArray.length);
+    } catch (IOException e) {
+      LOG.warn("Could not serialize context {}", e);
+    }
+
+    return byteArray;
+  }
+
 }

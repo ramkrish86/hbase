@@ -15,21 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-syntax = "proto2";
-package hbase.pb;
+package org.apache.hadoop.hbase.trace;
 
-option java_package = "org.apache.hadoop.hbase.shaded.protobuf.generated";
-option java_outer_classname = "TracingProtos";
-option java_generate_equals_and_hash = true;
-option optimize_for = SPEED;
+import org.apache.yetus.audience.InterfaceAudience;
 
-//Used to pass through the information necessary to continue
-//a trace after an RPC is made. All we need is the traceid 
-//(so we know the overarching trace this message is a part of), and
-//the id of the current span when this message was sent, so we know 
-//what span caused the new span we will create when this message is received.
-message RPCTInfo {
-  optional int64 trace_id = 1;
-  optional int64 parent_id = 2;
-  optional bytes spanContext = 3; // OpenTracing SpanContext
+import io.jaegertracing.Configuration;
+import io.jaegertracing.internal.samplers.ConstSampler;
+
+@InterfaceAudience.Private
+public class AlwaysSampler {
+  public static Configuration.SamplerConfiguration INSTANCE =
+      Configuration.SamplerConfiguration.fromEnv()
+          .withType(ConstSampler.TYPE)
+          .withParam(1);
 }

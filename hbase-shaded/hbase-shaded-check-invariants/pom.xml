@@ -122,6 +122,8 @@
                     <exclude>com.github.stephenc.findbugs:*</exclude>
                     <!-- We leave HTrace as an unshaded dependnecy on purpose so that tracing within a JVM will work -->
                     <exclude>org.apache.htrace:*</exclude>
+                    <exclude>io.opentracing:*</exclude>
+                    <exclude>io.jaegertracing:*</exclude>
                     <!-- Our public API requires Hadoop at runtime to work -->
                     <exclude>org.apache.hadoop:*</exclude>
                   </excludes>

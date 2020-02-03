@@ -50,6 +50,8 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.opentracing.mock.MockTracer;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.logging.impl.Jdk14Logger;
@@ -642,7 +644,9 @@ public class HBaseTestingUtility extends HBaseZKTestingUtility {
     org.apache.log4j.Logger.getLogger(org.apache.hadoop.metrics2.impl.MetricsSystemImpl.class).
         setLevel(org.apache.log4j.Level.ERROR);
 
-    TraceUtil.initTracer(conf);
+    //TraceUtil.initTracer(conf);
+    TraceUtil.registerTracerForTest(new MockTracer());
+
 
     this.dfsCluster = new MiniDFSCluster(0, this.conf, servers, true, true,
         true, null, racks, hosts, null);
