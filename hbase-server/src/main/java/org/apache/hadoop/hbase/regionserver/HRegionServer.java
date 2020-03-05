@@ -21,7 +21,7 @@ import static org.apache.hadoop.hbase.HConstants.DEFAULT_HBASE_SPLIT_COORDINATED
 import static org.apache.hadoop.hbase.HConstants.DEFAULT_HBASE_SPLIT_WAL_MAX_SPLITTER;
 import static org.apache.hadoop.hbase.HConstants.HBASE_SPLIT_WAL_COORDINATED_BY_ZK;
 import static org.apache.hadoop.hbase.HConstants.HBASE_SPLIT_WAL_MAX_SPLITTER;
-
+import static org.apache.hadoop.hbase.util.DNS.RS_HOSTNAME_KEY;
 import java.io.IOException;
 import java.lang.Thread.UncaughtExceptionHandler;
 import java.lang.management.MemoryType;
@@ -53,10 +53,8 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Function;
 import javax.management.MalformedObjectNameException;
 import javax.servlet.http.HttpServlet;
-
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -92,7 +90,6 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.ConnectionUtils;
 import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.client.RegionInfoBuilder;
-import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.client.locking.EntityLock;
 import org.apache.hadoop.hbase.client.locking.LockServiceClient;
 import org.apache.hadoop.hbase.conf.ConfigurationManager;
@@ -139,6 +136,7 @@ import org.apache.hadoop.hbase.regionserver.handler.CloseMetaHandler;
 import org.apache.hadoop.hbase.regionserver.handler.CloseRegionHandler;
 import org.apache.hadoop.hbase.regionserver.handler.RSProcedureHandler;
 import org.apache.hadoop.hbase.regionserver.handler.RegionReplicaFlushHandler;
+import org.apache.hadoop.hbase.regionserver.slowlog.SlowLogRecorder;
 import org.apache.hadoop.hbase.regionserver.throttle.FlushThroughputControllerFactory;
 import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.replication.regionserver.ReplicationLoad;
@@ -189,7 +187,6 @@ import org.apache.zookeeper.KeeperException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Signal;
-
 import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.hbase.thirdparty.com.google.common.base.Preconditions;
 import org.apache.hbase.thirdparty.com.google.common.base.Throwables;
@@ -201,7 +198,6 @@ import org.apache.hbase.thirdparty.com.google.protobuf.RpcController;
 import org.apache.hbase.thirdparty.com.google.protobuf.ServiceException;
 import org.apache.hbase.thirdparty.com.google.protobuf.TextFormat;
 import org.apache.hbase.thirdparty.com.google.protobuf.UnsafeByteOperations;
-
 import org.apache.hadoop.hbase.shaded.protobuf.ProtobufUtil;
 import org.apache.hadoop.hbase.shaded.protobuf.RequestConverter;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClientProtos.CoprocessorServiceCall;
@@ -450,14 +446,6 @@ public class HRegionServer extends HasThread implements
    */
   protected String useThisHostnameInstead;
 
-  // key to the config parameter of server hostname
-  // the specification of server hostname is optional. The hostname should be resolvable from
-  // both master and region server
-  @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.CONFIG)
-  final static String RS_HOSTNAME_KEY = "hbase.regionserver.hostname";
-  @InterfaceAudience.LimitedPrivate(HBaseInterfaceAudience.CONFIG)
-  protected final static String MASTER_HOSTNAME_KEY = "hbase.master.hostname";
-
   /**
    * HBASE-18226: This config and hbase.regionserver.hostname are mutually exclusive.
    * Exception will be thrown if both are used.
@@ -535,6 +523,11 @@ public class HRegionServer extends HasThread implements
   private final NettyEventLoopGroupConfig eventLoopGroupConfig;
 
   /**
+   * Provide online slow log responses from ringbuffer
+   */
+  private SlowLogRecorder slowLogRecorder;
+
+  /**
    * True if this RegionServer is coming up in a cluster where there is no Master;
    * means it needs to just come up and make do without a Master to talk to: e.g. in test or
    * HRegionServer is doing other than its usual duties: e.g. as an hollowed-out host whose only
@@ -590,6 +583,9 @@ public class HRegionServer extends HasThread implements
       this.abortRequested = false;
       this.stopped = false;
 
+      if (!(this instanceof HMaster)) {
+        this.slowLogRecorder = new SlowLogRecorder(this.conf);
+      }
       rpcServices = createRpcServices();
       useThisHostnameInstead = getUseThisHostnameInstead(conf);
       String hostName =
@@ -719,23 +715,19 @@ public class HRegionServer extends HasThread implements
     FSUtils.setFsDefault(this.conf, FSUtils.getRootDir(this.conf));
     this.dataFs = new HFileSystem(this.conf, useHBaseChecksum);
     this.dataRootDir = FSUtils.getRootDir(this.conf);
-    this.tableDescriptors = getFsTableDescriptors();
-  }
-
-  private TableDescriptors getFsTableDescriptors() throws IOException {
-    return new FSTableDescriptors(this.conf,
-      this.dataFs, this.dataRootDir, !canUpdateTableDescriptor(), false, getMetaTableObserver());
-  }
-
-  protected Function<TableDescriptorBuilder, TableDescriptorBuilder> getMetaTableObserver() {
-    return null;
+    this.tableDescriptors =
+        new FSTableDescriptors(this.dataFs, this.dataRootDir, !canUpdateTableDescriptor(), false);
+    if (this instanceof HMaster) {
+      FSTableDescriptors.tryUpdateMetaTableDescriptor(this.conf, this.dataFs, this.dataRootDir,
+        builder -> builder.setRegionReplication(
+          conf.getInt(HConstants.META_REPLICAS_NUM, HConstants.DEFAULT_META_REPLICA_NUM)));
+    }
   }
 
   protected void login(UserProvider user, String host) throws IOException {
     user.login(SecurityConstants.REGIONSERVER_KRB_KEYTAB_FILE,
       SecurityConstants.REGIONSERVER_KRB_PRINCIPAL, host);
   }
-
 
   /**
    * Wait for an active Master.
@@ -760,7 +752,7 @@ public class HRegionServer extends HasThread implements
   }
 
   protected void configureInfoServer() {
-    infoServer.addServlet("rs-status", "/rs-status", RSStatusServlet.class);
+    infoServer.addUnprivilegedServlet("rs-status", "/rs-status", RSStatusServlet.class);
     infoServer.setAttribute(REGIONSERVER, this);
   }
 
@@ -789,8 +781,17 @@ public class HRegionServer extends HasThread implements
     return true;
   }
 
-  private Configuration unsetClientZookeeperQuorum() {
+  private Configuration cleanupConfiguration() {
     Configuration conf = this.conf;
+    // We use ZKConnectionRegistry for all the internal communication, primarily for these reasons:
+    // - Decouples RS and master life cycles. RegionServers can continue be up independent of
+    //   masters' availability.
+    // - Configuration management for region servers (cluster internal) is much simpler when adding
+    //   new masters or removing existing masters, since only clients' config needs to be updated.
+    // - We need to retain ZKConnectionRegistry for replication use anyway, so we just extend it for
+    //   other internal connections too.
+    conf.set(HConstants.CLIENT_CONNECTION_REGISTRY_IMPL_CONF_KEY,
+        HConstants.ZK_CONNECTION_REGISTRY_CLASS);
     if (conf.get(HConstants.CLIENT_ZOOKEEPER_QUORUM) != null) {
       // Use server ZK cluster for server-issued connections, so we clone
       // the conf and unset the client ZK related properties
@@ -824,7 +825,7 @@ public class HRegionServer extends HasThread implements
    */
   protected final synchronized void setupClusterConnection() throws IOException {
     if (asyncClusterConnection == null) {
-      Configuration conf = unsetClientZookeeperQuorum();
+      Configuration conf = cleanupConfiguration();
       InetSocketAddress localAddress = new InetSocketAddress(this.rpcServices.isa.getAddress(), 0);
       User user = userProvider.getCurrent();
       asyncClusterConnection =
@@ -1481,6 +1482,15 @@ public class HRegionServer extends HasThread implements
   }
 
   /**
+   * get Online SlowLog Provider to add slow logs to ringbuffer
+   *
+   * @return Online SlowLog Provider
+   */
+  public SlowLogRecorder getSlowLogRecorder() {
+    return this.slowLogRecorder;
+  }
+
+  /*
    * Run init. Sets up wal and starts up all server threads.
    *
    * @param c Extra configuration.
@@ -1638,7 +1648,7 @@ public class HRegionServer extends HasThread implements
     int stores = 0;
     int storefiles = 0;
     int storeRefCount = 0;
-    int maxStoreFileRefCount = 0;
+    int maxCompactedStoreFileRefCount = 0;
     int storeUncompressedSizeMB = 0;
     int storefileSizeMB = 0;
     int memstoreSizeMB = (int) (r.getMemStoreDataSize() / 1024 / 1024);
@@ -1654,8 +1664,9 @@ public class HRegionServer extends HasThread implements
       storefiles += store.getStorefilesCount();
       int currentStoreRefCount = store.getStoreRefCount();
       storeRefCount += currentStoreRefCount;
-      int currentMaxStoreFileRefCount = store.getMaxStoreFileRefCount();
-      maxStoreFileRefCount = Math.max(maxStoreFileRefCount, currentMaxStoreFileRefCount);
+      int currentMaxCompactedStoreFileRefCount = store.getMaxCompactedStoreFileRefCount();
+      maxCompactedStoreFileRefCount = Math.max(maxCompactedStoreFileRefCount,
+        currentMaxCompactedStoreFileRefCount);
       storeUncompressedSizeMB += (int) (store.getStoreSizeUncompressed() / 1024 / 1024);
       storefileSizeMB += (int) (store.getStorefilesSize() / 1024 / 1024);
       //TODO: storefileIndexSizeKB is same with rootLevelIndexSizeKB?
@@ -1684,7 +1695,7 @@ public class HRegionServer extends HasThread implements
       .setStores(stores)
       .setStorefiles(storefiles)
       .setStoreRefCount(storeRefCount)
-      .setMaxStoreFileRefCount(maxStoreFileRefCount)
+      .setMaxCompactedStoreFileRefCount(maxCompactedStoreFileRefCount)
       .setStoreUncompressedSizeMB(storeUncompressedSizeMB)
       .setStorefileSizeMB(storefileSizeMB)
       .setMemStoreSizeMB(memstoreSizeMB)
@@ -2123,7 +2134,7 @@ public class HRegionServer extends HasThread implements
     while (true) {
       try {
         this.infoServer = new InfoServer(getProcessName(), addr, port, false, this.conf);
-        infoServer.addServlet("dump", "/dump", getDumpServlet());
+        infoServer.addPrivilegedServlet("dump", "/dump", getDumpServlet());
         configureInfoServer();
         this.infoServer.start();
         break;
@@ -3169,7 +3180,7 @@ public class HRegionServer extends HasThread implements
 
   /**
    * Close asynchronously a region, can be called from the master or internally by the regionserver
-   * when stopping. If called from the master, the region will update the znode status.
+   * when stopping. If called from the master, the region will update the status.
    *
    * <p>
    * If an opening was in progress, this method will cancel it, but will not start a new close. The
@@ -3199,6 +3210,7 @@ public class HRegionServer extends HasThread implements
       }
     }
 
+    // previous can come back 'null' if not in map.
     final Boolean previous = this.regionsInTransitionInRS.putIfAbsent(Bytes.toBytes(encodedName),
         Boolean.FALSE);
 
@@ -3220,6 +3232,8 @@ public class HRegionServer extends HasThread implements
         throw new NotServingRegionException("The region " + encodedName +
           " was opening but not yet served. Opening is cancelled.");
       }
+    } else if (previous == null) {
+      LOG.info("Received CLOSE for {}", encodedName);
     } else if (Boolean.FALSE.equals(previous)) {
       LOG.info("Received CLOSE for the region: " + encodedName +
         ", which we are already trying to CLOSE, but not completed yet");

@@ -233,8 +233,7 @@ public class MetaTableAccessor {
    * @return An {@link Table} for <code>hbase:meta</code>
    * @throws NullPointerException if {@code connection} is {@code null}
    */
-  public static Table getMetaHTable(final Connection connection)
-  throws IOException {
+  public static Table getMetaHTable(final Connection connection) throws IOException {
     // We used to pass whole CatalogTracker in here, now we just pass in Connection
     Objects.requireNonNull(connection, "Connection cannot be null");
     if (connection.isClosed()) {
@@ -304,11 +303,18 @@ public class MetaTableAccessor {
    */
   public static HRegionLocation getRegionLocation(Connection connection, RegionInfo regionInfo)
       throws IOException {
-    byte[] row = getMetaKeyForRegion(regionInfo);
-    Get get = new Get(row);
+    return getRegionLocation(getCatalogFamilyRow(connection, regionInfo),
+        regionInfo, regionInfo.getReplicaId());
+  }
+
+  /**
+   * @return Return the {@link HConstants#CATALOG_FAMILY} row from hbase:meta.
+   */
+  public static Result getCatalogFamilyRow(Connection connection, RegionInfo ri)
+      throws IOException {
+    Get get = new Get(getMetaKeyForRegion(ri));
     get.addFamily(HConstants.CATALOG_FAMILY);
-    Result r = get(getMetaHTable(connection), get);
-    return getRegionLocation(r, regionInfo, regionInfo.getReplicaId());
+    return get(getMetaHTable(connection), get);
   }
 
   /** Returns the row key to use for this regionInfo */
@@ -320,6 +326,7 @@ public class MetaTableAccessor {
    * is stored in the name, so the returned object should only be used for the fields
    * in the regionName.
    */
+  // This should be moved to RegionInfo? TODO.
   public static RegionInfo parseRegionInfoFromRegionName(byte[] regionName) throws IOException {
     byte[][] fields = RegionInfo.parseRegionName(regionName);
     long regionId = Long.parseLong(Bytes.toString(fields[2]));
@@ -1108,6 +1115,7 @@ public class MetaTableAccessor {
 
   /**
    * Updates state in META
+   * Do not use. For internal use only.
    * @param conn connection to use
    * @param tableName table to look for
    */
@@ -1249,9 +1257,7 @@ public class MetaTableAccessor {
    * Generates and returns a Put containing the region into for the catalog table
    */
   public static Put makePutFromRegionInfo(RegionInfo regionInfo, long ts) throws IOException {
-    Put put = new Put(regionInfo.getRegionName(), ts);
-    addRegionInfo(put, regionInfo);
-    return put;
+    return addRegionInfo(new Put(regionInfo.getRegionName(), ts), regionInfo);
   }
 
   /**
@@ -1389,7 +1395,7 @@ public class MetaTableAccessor {
     }
   }
 
-  private static void addRegionStateToPut(Put put, RegionState.State state) throws IOException {
+  private static Put addRegionStateToPut(Put put, RegionState.State state) throws IOException {
     put.add(CellBuilderFactory.create(CellBuilderType.SHALLOW_COPY)
         .setRow(put.getRow())
         .setFamily(HConstants.CATALOG_FAMILY)
@@ -1398,6 +1404,17 @@ public class MetaTableAccessor {
         .setType(Cell.Type.Put)
         .setValue(Bytes.toBytes(state.name()))
         .build());
+    return put;
+  }
+
+  /**
+   * Update state column in hbase:meta.
+   */
+  public static void updateRegionState(Connection connection, RegionInfo ri,
+      RegionState.State state) throws IOException {
+    Put put = new Put(RegionReplicaUtil.getRegionInfoForDefaultReplica(ri).getRegionName());
+    MetaTableAccessor.putsToMetaTable(connection,
+        Collections.singletonList(addRegionStateToPut(put, state)));
   }
 
   /**
@@ -1656,44 +1673,47 @@ public class MetaTableAccessor {
   }
 
   /**
-   * Performs an atomic multi-mutate operation against the given table.
+   * Performs an atomic multi-mutate operation against the given table. Used by the likes of
+   * merge and split as these want to make atomic mutations across multiple rows.
+   * @throws IOException even if we encounter a RuntimeException, we'll still wrap it in an IOE.
    */
-  private static void multiMutate(final Table table, byte[] row, final List<Mutation> mutations)
+  @VisibleForTesting
+  static void multiMutate(final Table table, byte[] row, final List<Mutation> mutations)
       throws IOException {
     debugLogMutations(mutations);
-    Batch.Call<MultiRowMutationService, MutateRowsResponse> callable =
-      new Batch.Call<MultiRowMutationService, MutateRowsResponse>() {
-
-        @Override
-        public MutateRowsResponse call(MultiRowMutationService instance) throws IOException {
-          MutateRowsRequest.Builder builder = MutateRowsRequest.newBuilder();
-          for (Mutation mutation : mutations) {
-            if (mutation instanceof Put) {
-              builder.addMutationRequest(
-                ProtobufUtil.toMutation(ClientProtos.MutationProto.MutationType.PUT, mutation));
-            } else if (mutation instanceof Delete) {
-              builder.addMutationRequest(
-                ProtobufUtil.toMutation(ClientProtos.MutationProto.MutationType.DELETE, mutation));
-            } else {
-              throw new DoNotRetryIOException(
-                "multi in MetaEditor doesn't support " + mutation.getClass().getName());
-            }
-          }
-          ServerRpcController controller = new ServerRpcController();
-          CoprocessorRpcUtils.BlockingRpcCallback<MutateRowsResponse> rpcCallback =
-            new CoprocessorRpcUtils.BlockingRpcCallback<>();
-          instance.mutateRows(controller, builder.build(), rpcCallback);
-          MutateRowsResponse resp = rpcCallback.get();
-          if (controller.failedOnException()) {
-            throw controller.getFailedOn();
-          }
-          return resp;
+    Batch.Call<MultiRowMutationService, MutateRowsResponse> callable = instance -> {
+      MutateRowsRequest.Builder builder = MutateRowsRequest.newBuilder();
+      for (Mutation mutation : mutations) {
+        if (mutation instanceof Put) {
+          builder.addMutationRequest(
+            ProtobufUtil.toMutation(ClientProtos.MutationProto.MutationType.PUT, mutation));
+        } else if (mutation instanceof Delete) {
+          builder.addMutationRequest(
+            ProtobufUtil.toMutation(ClientProtos.MutationProto.MutationType.DELETE, mutation));
+        } else {
+          throw new DoNotRetryIOException(
+            "multi in MetaEditor doesn't support " + mutation.getClass().getName());
         }
-      };
+      }
+      ServerRpcController controller = new ServerRpcController();
+      CoprocessorRpcUtils.BlockingRpcCallback<MutateRowsResponse> rpcCallback =
+        new CoprocessorRpcUtils.BlockingRpcCallback<>();
+      instance.mutateRows(controller, builder.build(), rpcCallback);
+      MutateRowsResponse resp = rpcCallback.get();
+      if (controller.failedOnException()) {
+        throw controller.getFailedOn();
+      }
+      return resp;
+    };
     try {
       table.coprocessorService(MultiRowMutationService.class, row, row, callable);
     } catch (Throwable e) {
-      Throwables.propagateIfPossible(e, IOException.class);
+      // Throw if an IOE else wrap in an IOE EVEN IF IT IS a RuntimeException (e.g.
+      // a RejectedExecutionException because the hosting exception is shutting down.
+      // This is old behavior worth reexamining. Procedures doing merge or split
+      // currently don't handle RuntimeExceptions coming up out of meta table edits.
+      // Would have to work on this at least. See HBASE-23904.
+      Throwables.throwIfInstanceOf(e, IOException.class);
       throw new IOException(e);
     }
   }

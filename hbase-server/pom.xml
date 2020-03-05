@@ -47,6 +47,12 @@
           <include>hbase-webapps/**</include>
         </includes>
       </resource>
+      <resource>
+        <directory>src/main/resources</directory>
+        <includes>
+          <include>**/**</include>
+        </includes>
+      </resource>
     </resources>
     <testResources>
       <!-- Our test artifact has different license info than our source/bin ones -->
@@ -437,6 +443,11 @@
       <scope>test</scope>
     </dependency>
     <dependency>
+      <groupId>org.hamcrest</groupId>
+      <artifactId>hamcrest-library</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.bouncycastle</groupId>
       <artifactId>bcprov-jdk15on</artifactId>
       <scope>test</scope>
@@ -601,9 +612,6 @@
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-distcp</artifactId>
-          <!--This dependency is not in top-level pom so needs
-               version specified-->
-          <version>${hadoop-two.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
@@ -712,9 +720,6 @@
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-distcp</artifactId>
-          <!--This dependency is not in top-level pom so needs
-               version specified-->
-          <version>${hadoop-three.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
@@ -727,7 +732,6 @@
         <dependency>
           <groupId>org.apache.hadoop</groupId>
           <artifactId>hadoop-hdfs-client</artifactId>
-          <version>${hadoop.version}</version>
         </dependency>
         <dependency>
           <groupId>org.apache.hadoop</groupId>
