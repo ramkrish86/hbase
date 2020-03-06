@@ -75,7 +75,7 @@ public abstract class EventHandler implements Runnable, Comparable<EventHandler>
    * Default base class constructor.
    */
   public EventHandler(Server server, EventType eventType) {
-    this.parent = GlobalTracer.get().activeSpan();;
+    this.parent = TraceUtil.getTracer().activeSpan();;
     this.server = server;
     this.eventType = eventType;
     seqid = seqids.incrementAndGet();

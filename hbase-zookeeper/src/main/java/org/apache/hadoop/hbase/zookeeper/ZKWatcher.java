@@ -27,11 +27,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Abortable;
 import org.apache.hadoop.hbase.AuthUtil;
 import org.apache.hadoop.hbase.ZooKeeperConnectionException;
 import org.apache.hadoop.hbase.security.Superusers;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.zookeeper.KeeperException;
@@ -90,6 +94,7 @@ public class ZKWatcher implements Watcher, Abortable, Closeable {
   /* A pattern that matches a Kerberos name, borrowed from Hadoop's KerberosName */
   private static final Pattern NAME_PATTERN = Pattern.compile("([^/@]*)(/([^/@]*))?@([^/@]*)");
 
+  private Span span;
   /**
    * Instantiate a ZooKeeper connection and watcher.
    * @param identifier string that is passed to RecoverableZookeeper to be used as
@@ -479,7 +484,8 @@ public class ZKWatcher implements Watcher, Abortable, Closeable {
         "state=" + event.getState() + ", " +
         "path=" + event.getPath()));
 
-    switch(event.getType()) {
+    try (Scope scope = TraceUtil.getTracer().scopeManager().activate(span, false)) {
+      switch(event.getType()) {
 
       // If event type is NONE, this is a connection status change
       case None: {
@@ -518,6 +524,7 @@ public class ZKWatcher implements Watcher, Abortable, Closeable {
       }
       default:
         throw new IllegalStateException("Received event is not valid: " + event.getState());
+      }
     }
   }
 
@@ -653,5 +660,9 @@ public class ZKWatcher implements Watcher, Abortable, Closeable {
   @Override
   public boolean isAborted() {
     return this.abortable == null? this.aborted: this.abortable.isAborted();
+  }
+
+  public void setSpan(Span span) {
+    this.span = span;
   }
 }

@@ -21,6 +21,8 @@ import static org.apache.hadoop.hbase.util.FutureUtils.addListener;
 
 import java.io.IOException;
 import java.util.List;
+
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.CellScanner;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
@@ -66,10 +68,10 @@ public class AsyncRegionReplicaReplayRetryingCaller extends AsyncRpcRetryingCall
   public AsyncRegionReplicaReplayRetryingCaller(HashedWheelTimer retryTimer,
       AsyncClusterConnectionImpl conn, int maxAttempts, long operationTimeoutNs,
       TableName tableName, byte[] encodedRegionName, byte[] row, List<Entry> entries,
-      int replicaId) {
+      int replicaId, Span span) {
     super(retryTimer, conn, ConnectionUtils.getPriority(tableName), conn.connConf.getPauseNs(),
       conn.connConf.getPauseForCQTBENs(), maxAttempts, operationTimeoutNs,
-      conn.connConf.getWriteRpcTimeoutNs(), conn.connConf.getStartLogErrorsCnt());
+      conn.connConf.getWriteRpcTimeoutNs(), conn.connConf.getStartLogErrorsCnt(), span);
     this.tableName = tableName;
     this.encodedRegionName = encodedRegionName;
     this.row = row;

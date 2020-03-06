@@ -37,6 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import io.opentracing.Scope;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.exceptions.IllegalArgumentIOException;
@@ -47,6 +49,7 @@ import org.apache.hadoop.hbase.procedure2.store.ProcedureStore.ProcedureIterator
 import org.apache.hadoop.hbase.procedure2.store.ProcedureStore.ProcedureStoreListener;
 import org.apache.hadoop.hbase.procedure2.util.StringUtils;
 import org.apache.hadoop.hbase.security.User;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.IdLock;
 import org.apache.hadoop.hbase.util.NonceKey;
@@ -1976,7 +1979,7 @@ public class ProcedureExecutor<TEnvironment> {
             runningCount, activeCount);
           executionStartTime.set(EnvironmentEdgeManager.currentTime());
           IdLock.Entry lockEntry = procExecutionLock.getLockEntry(proc.getProcId());
-          try {
+          try (Scope scope = TraceUtil.createTrace(proc.getProcName(), proc.spanContext)) {
             executeProcedure(proc);
           } catch (AssertionError e) {
             LOG.info("ASSERT pid=" + proc.getProcId(), e);

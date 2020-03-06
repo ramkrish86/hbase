@@ -685,14 +685,24 @@ abstract class ServerRpcConnection implements Closeable {
     }
 
     SpanContext spanContext = null;
+    TraceUtil.LOG.debug("the call id is "+id+ " "+header.hasTraceInfo() + " "+header.getTraceInfo().hasSpanContext());
     if (header.hasTraceInfo() && header.getTraceInfo().hasSpanContext()) {
       TracingProtos.RPCTInfo rpctInfo = header.getTraceInfo();
+      TraceUtil.LOG.debug("Still not converted ");
       spanContext = TraceUtil.byteArrayToSpanContext(rpctInfo.getSpanContext().toByteArray());
+      TraceUtil.LOG.debug("Am not priting full details "+spanContext.toString());
+      TraceUtil.LOG.debug("priting header " + header);
+      //TraceUtil.LOG.debug("priting param " + param);
+      TraceUtil.LOG.debug("priting id " + id);
+      //TraceUtil.LOG.debug("Found span context " + header + " " +param+ " "+id);
+    } else {
+      TraceUtil.LOG.debug("missing trace span of this call" + header + " " +param+ " "+id);
     }
     int timeout = 0;
     if (header.hasTimeout() && header.getTimeout() > 0) {
       timeout = Math.max(this.rpcServer.minClientRequestTimeout, header.getTimeout());
     }
+    TraceUtil.LOG.debug("Creating a call");
     ServerCall<?> call = createCall(id, this.service, md, header, param, cellScanner, totalRequestSize,
       this.addr, timeout, this.callCleanup, spanContext);
 

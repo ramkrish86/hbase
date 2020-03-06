@@ -43,7 +43,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import io.jaegertracing.Configuration.ReporterConfiguration;
+import io.jaegertracing.Configuration.SamplerConfiguration;
 import io.jaegertracing.internal.samplers.ConstSampler;
+import io.jaegertracing.internal.senders.SenderResolver;
 import io.opentracing.Scope;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -1170,6 +1173,10 @@ public class PerformanceEvaluation extends Configured implements Tool {
         return opts.valueSize;
       }
     }
+    
+    public static void main(String[] args) {
+		SenderResolver.resolve();
+	}
 
     void updateValueSize(final Result [] rs) throws IOException {
       if (rs == null || !isRandomValueSize()) return;

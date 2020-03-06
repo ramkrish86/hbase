@@ -23,6 +23,7 @@ import org.apache.hadoop.hbase.NamespaceDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.master.MasterFileSystem;
 import org.apache.hadoop.hbase.master.TableNamespaceManager;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.yetus.audience.InterfaceAudience;
 
 import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
@@ -53,6 +54,7 @@ public abstract class AbstractStateMachineNamespaceProcedure<TState>
       final ProcedurePrepareLatch latch) {
     this.setOwner(env.getRequestUser());
     this.syncLatch = latch;
+    this.spanContext = TraceUtil.getTracer().activeSpan().context();
   }
 
   protected abstract String getNamespaceName();

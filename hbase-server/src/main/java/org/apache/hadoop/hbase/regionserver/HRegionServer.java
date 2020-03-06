@@ -57,6 +57,7 @@ import java.util.function.Function;
 import javax.management.MalformedObjectNameException;
 import javax.servlet.http.HttpServlet;
 
+import io.opentracing.Scope;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -558,8 +559,8 @@ public class HRegionServer extends HasThread implements
    */
   public HRegionServer(final Configuration conf) throws IOException {
     super("RegionServer");  // thread name
-    TraceUtil.initTracer(conf);
-    try {
+    TraceUtil.initTracer(conf, "RegionServer");
+    try (Scope scope = TraceUtil.createRootTrace("Initialize RegionServer")) {
       this.startcode = System.currentTimeMillis();
       this.conf = conf;
       this.dataFsOk = true;
@@ -1018,7 +1019,9 @@ public class HRegionServer extends HasThread implements
         }
         long now = System.currentTimeMillis();
         if ((now - lastMsg) >= msgInterval) {
-          tryRegionServerReport(lastMsg, now);
+          try (Scope scope = TraceUtil.createRootTrace("HRegionServer:tryRegionServerReport")) {
+            tryRegionServerReport(lastMsg, now);
+          }
           lastMsg = System.currentTimeMillis();
         }
         if (!isStopped() && !isAborted()) {
@@ -1487,7 +1490,7 @@ public class HRegionServer extends HasThread implements
    */
   protected void handleReportForDutyResponse(final RegionServerStartupResponse c)
   throws IOException {
-    try {
+    try (Scope scope = TraceUtil.createRootTrace("HRegionServer:handleReportForDutyResponse")) {
       boolean updateRootDir = false;
       for (NameStringPair e : c.getMapEntriesList()) {
         String key = e.getName();
@@ -2460,7 +2463,7 @@ public class HRegionServer extends HasThread implements
     }
 
     // Do our best to report our abort to the master, but this may not work
-    try {
+    try (Scope scope = TraceUtil.createRootTrace("RegionServer abort")) {
       if (cause != null) {
         msg += "\nCause:\n" + Throwables.getStackTraceAsString(cause);
       }
@@ -2703,7 +2706,7 @@ public class HRegionServer extends HasThread implements
     RegionServerStatusService.BlockingInterface rss = rssStub;
     if (masterServerName == null || rss == null) return null;
     RegionServerStartupResponse result = null;
-    try {
+    try (Scope scope = TraceUtil.createRootTrace("HRegionServer:reportForDuty")) {
       rpcServices.requestCount.reset();
       rpcServices.rpcGetRequestCount.reset();
       rpcServices.rpcScanRequestCount.reset();

@@ -104,11 +104,11 @@ public class TestOpenTracingHooks {
 
     // Roots was made 3 in hbase2. It used to be 1. We changed it back to 1 on upgrade to
     // htrace-4.2 just to get the test to pass (traces are not wholesome in hbase2; TODO).
-    //assertEquals(2, roots.size());
-    //assertEquals("creating table", createTableSpan.operationName());
+    assertEquals(1, roots.size());
+    assertEquals("creating table", createTableSpan.operationName());
 
     if (spans != null) {
-      //assertTrue(spans.size() > 5);
+      assertTrue(spans.size() > 5);
     }
 
     Put put = new Put("row".getBytes());

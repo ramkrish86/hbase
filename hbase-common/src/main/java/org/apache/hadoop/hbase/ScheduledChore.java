@@ -21,6 +21,8 @@ package org.apache.hadoop.hbase;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import io.opentracing.Scope;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.MovingAverage;
 import org.apache.hadoop.hbase.util.WindowMovingAverage;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -182,7 +184,7 @@ public abstract class ScheduledChore implements Runnable {
       cleanup();
       if (LOG.isInfoEnabled()) LOG.info("Chore: " + getName() + " was stopped");
     } else {
-      try {
+      try (Scope scope = TraceUtil.createRootTrace("Chore")) {
         if (!initialChoreComplete) {
           initialChoreComplete = initialChore();
         } else {

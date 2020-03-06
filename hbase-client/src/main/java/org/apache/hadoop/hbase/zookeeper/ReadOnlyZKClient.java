@@ -30,8 +30,13 @@ import java.util.concurrent.DelayQueue;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.FutureUtils;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -157,10 +162,13 @@ public final class ReadOnlyZKClient implements Closeable {
 
     private int retries;
 
+    protected Span span;
+
     protected ZKTask(String path, CompletableFuture<T> future, String operationType) {
       this.path = path;
       this.future = future;
       this.operationType = operationType;
+      this.span = TraceUtil.getTracer().activeSpan();
     }
 
     protected final void onComplete(ZooKeeper zk, int rc, T ret, boolean errorIfNoNode) {
@@ -168,34 +176,36 @@ public final class ReadOnlyZKClient implements Closeable {
 
         @Override
         public void exec(ZooKeeper alwaysNull) {
-          pendingRequests--;
-          Code code = Code.get(rc);
-          if (code == Code.OK) {
-            future.complete(ret);
-          } else if (code == Code.NONODE) {
-            if (errorIfNoNode) {
-              future.completeExceptionally(KeeperException.create(code, path));
-            } else {
+          try (Scope scope = TraceUtil.getTracer().scopeManager().activate(span, true)) {
+            pendingRequests--;
+            Code code = Code.get(rc);
+            if (code == Code.OK) {
               future.complete(ret);
-            }
-          } else if (FAIL_FAST_CODES.contains(code)) {
-            future.completeExceptionally(KeeperException.create(code, path));
-          } else {
-            if (code == Code.SESSIONEXPIRED) {
-              LOG.warn("{} to {} session expired, close and reconnect", getId(), connectString);
-              try {
-                zk.close();
-              } catch (InterruptedException e) {
+            } else if (code == Code.NONODE) {
+              if (errorIfNoNode) {
+                future.completeExceptionally(KeeperException.create(code, path));
+              } else {
+                future.complete(ret);
               }
-            }
-            if (ZKTask.this.delay(retryIntervalMs, maxRetries)) {
-              LOG.warn("{} to {} failed for {} of {}, code = {}, retries = {}", getId(),
-                connectString, operationType, path, code, ZKTask.this.retries);
-              tasks.add(ZKTask.this);
-            } else {
-              LOG.warn("{} to {} failed for {} of {}, code = {}, retries = {}, give up", getId(),
-                connectString, operationType, path, code, ZKTask.this.retries);
+            } else if (FAIL_FAST_CODES.contains(code)) {
               future.completeExceptionally(KeeperException.create(code, path));
+            } else {
+              if (code == Code.SESSIONEXPIRED) {
+                LOG.warn("{} to {} session expired, close and reconnect", getId(), connectString);
+                try {
+                  zk.close();
+                } catch (InterruptedException e) {
+                }
+              }
+              if (ZKTask.this.delay(retryIntervalMs, maxRetries)) {
+                LOG.warn("{} to {} failed for {} of {}, code = {}, retries = {}", getId(),
+                  connectString, operationType, path, code, ZKTask.this.retries);
+                tasks.add(ZKTask.this);
+              } else {
+                LOG.warn("{} to {} failed for {} of {}, code = {}, retries = {}, give up", getId(),
+                  connectString, operationType, path, code, ZKTask.this.retries);
+                future.completeExceptionally(KeeperException.create(code, path));
+              }
             }
           }
         }
@@ -258,47 +268,53 @@ public final class ReadOnlyZKClient implements Closeable {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    CompletableFuture<byte[]> future = new CompletableFuture<>();
-    tasks.add(new ZKTask<byte[]>(path, future, "get") {
+    try (Scope scope = TraceUtil.getTracer().buildSpan("ReadOnlyZKClient.get").startActive(false)) {
+      CompletableFuture<byte[]> future = new CompletableFuture<>();
+      tasks.add(new ZKTask<byte[]>(path, future, "get") {
 
-      @Override
-      protected void doExec(ZooKeeper zk) {
-        zk.getData(path, false,
+        @Override protected void doExec(ZooKeeper zk) {
+          zk.getData(path, false,
             (rc, path, ctx, data, stat) -> onComplete(zk, rc, data, true), null);
-      }
-    });
-    return future;
+        }
+      });
+      return future;
+    }
   }
 
   public CompletableFuture<Stat> exists(String path) {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    CompletableFuture<Stat> future = new CompletableFuture<>();
-    tasks.add(new ZKTask<Stat>(path, future, "exists") {
+    try (Scope scope = TraceUtil.getTracer().buildSpan("ReadOnlyZKClient.exists").startActive(false)) {
+      CompletableFuture<Stat> future = new CompletableFuture<>();
+      tasks.add(new ZKTask<Stat>(path, future, "exists") {
 
-      @Override
-      protected void doExec(ZooKeeper zk) {
-        zk.exists(path, false, (rc, path, ctx, stat) -> onComplete(zk, rc, stat, false), null);
-      }
-    });
-    return future;
+        @Override protected void doExec(ZooKeeper zk) {
+          zk.exists(path, false,
+            (rc, path, ctx, stat) -> onComplete(zk, rc, stat, false), null);
+        }
+      });
+      return future;
+    }
   }
 
   public CompletableFuture<List<String>> list(String path) {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    CompletableFuture<List<String>> future = new CompletableFuture<>();
-    tasks.add(new ZKTask<List<String>>(path, future, "list") {
+    try (Scope scope = TraceUtil.getTracer().buildSpan("ReadOnlyZKClient.list").startActive(false)) {
+      CompletableFuture<List<String>> future = new CompletableFuture<>();
+      tasks.add(new ZKTask<List<String>>(path, future, "list") {
 
-      @Override
-      protected void doExec(ZooKeeper zk) {
-        zk.getChildren(path, false, (rc, path, ctx, children) -> onComplete(zk, rc, children, true),
-          null);
-      }
-    });
-    return future;
+        @Override protected void doExec(ZooKeeper zk) {
+          zk.getChildren(path, false,
+            (rc, path, ctx, children) -> onComplete(zk, rc, children, true),
+            null);
+        }
+      });
+
+      return future;
+    }
   }
 
   private void closeZk() {

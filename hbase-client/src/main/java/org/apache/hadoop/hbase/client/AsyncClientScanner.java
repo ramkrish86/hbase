@@ -32,10 +32,14 @@ import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics;
 import org.apache.hadoop.hbase.ipc.HBaseRpcController;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.yetus.audience.InterfaceAudience;
 
 import org.apache.hbase.thirdparty.io.netty.util.Timer;
@@ -139,14 +143,14 @@ class AsyncClientScanner {
   private final AtomicInteger openScannerTries = new AtomicInteger();
 
   private CompletableFuture<OpenScannerResponse> callOpenScanner(HBaseRpcController controller,
-      HRegionLocation loc, ClientService.Interface stub) {
+      HRegionLocation loc, ClientService.Interface stub, Span parent) {
     boolean isRegionServerRemote = isRemote(loc.getHostname());
     incRPCCallsMetrics(scanMetrics, isRegionServerRemote);
     if (openScannerTries.getAndIncrement() > 1) {
       incRPCRetriesMetrics(scanMetrics, isRegionServerRemote);
     }
     CompletableFuture<OpenScannerResponse> future = new CompletableFuture<>();
-    try {
+    try (Scope scannerSpan = TraceUtil.createTrace("callOpenScanner", parent)) {
       ScanRequest request = RequestConverter.buildScanRequest(loc.getRegion().getRegionName(), scan,
         scan.getCaching(), false);
       stub.scan(controller, request, resp -> {

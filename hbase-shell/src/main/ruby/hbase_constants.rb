@@ -123,5 +123,6 @@ require 'hbase/replication_admin'
 require 'hbase/security'
 require 'hbase/visibility_labels'
 require 'hbase/rsgroup_admin'
+require 'hbase/tracerutil'
 
 include HBaseQuotasConstants

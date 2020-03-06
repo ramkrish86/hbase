@@ -34,6 +34,7 @@ import org.apache.hadoop.hbase.master.TableStateManager;
 import org.apache.hadoop.hbase.master.assignment.RegionStateNode;
 import org.apache.hadoop.hbase.procedure2.StateMachineProcedure;
 import org.apache.hadoop.hbase.security.User;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.FSUtils;
 import org.apache.yetus.audience.InterfaceAudience;
 
@@ -54,6 +55,7 @@ public abstract class AbstractStateMachineTableProcedure<TState>
   protected AbstractStateMachineTableProcedure() {
     // Required by the Procedure framework to create the procedure on replay
     syncLatch = null;
+    this.spanContext = TraceUtil.getTracer().activeSpan().context();
   }
 
   protected AbstractStateMachineTableProcedure(final MasterProcedureEnv env) {
@@ -72,6 +74,7 @@ public abstract class AbstractStateMachineTableProcedure<TState>
     // used for compatibility with clients without procedures
     // they need a sync TableExistsException, TableNotFoundException, TableNotDisabledException, ...
     this.syncLatch = latch;
+    this.spanContext = TraceUtil.getTracer().activeSpan().context();
   }
 
   @Override

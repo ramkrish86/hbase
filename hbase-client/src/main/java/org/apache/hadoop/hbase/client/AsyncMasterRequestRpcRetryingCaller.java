@@ -20,6 +20,8 @@ package org.apache.hadoop.hbase.client;
 import static org.apache.hadoop.hbase.util.FutureUtils.addListener;
 
 import java.util.concurrent.CompletableFuture;
+
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.exceptions.ClientExceptionsUtil;
 import org.apache.hadoop.hbase.ipc.HBaseRpcController;
 import org.apache.hadoop.hbase.ipc.ServerNotRunningYetException;
@@ -45,9 +47,9 @@ public class AsyncMasterRequestRpcRetryingCaller<T> extends AsyncRpcRetryingCall
 
   public AsyncMasterRequestRpcRetryingCaller(Timer retryTimer, AsyncConnectionImpl conn,
       Callable<T> callable, int priority, long pauseNs, long pauseForCQTBENs, int maxRetries,
-      long operationTimeoutNs, long rpcTimeoutNs, int startLogErrorsCnt) {
+      long operationTimeoutNs, long rpcTimeoutNs, int startLogErrorsCnt, Span span) {
     super(retryTimer, conn, priority, pauseNs, pauseForCQTBENs, maxRetries, operationTimeoutNs,
-      rpcTimeoutNs, startLogErrorsCnt);
+      rpcTimeoutNs, startLogErrorsCnt, span);
     this.callable = callable;
   }
 

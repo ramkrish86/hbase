@@ -920,7 +920,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     MonitoredTask status = TaskMonitor.get().createStatus("Initializing region " + this);
     status.enableStatusJournal(true);
     long nextSeqId = -1;
-    try {
+    try (Scope scope = TraceUtil.createTrace("Initializing region " + this)) {
       nextSeqId = initializeRegionInternals(reporter, status);
       return nextSeqId;
     } catch (IOException e) {
@@ -1560,7 +1560,8 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
         (abort ? " due to abort" : ""));
     status.enableStatusJournal(true);
     status.setStatus("Waiting for close lock");
-    try {
+    try (Scope scope = TraceUtil.createTrace("Closing region " +
+      this.getRegionInfo().getEncodedName() + (abort ? " due to abort" : ""))) {
       synchronized (closeLock) {
         return doClose(abort, status);
       }
@@ -4803,7 +4804,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
 
     status.setStatus("Opening recovered edits");
     WAL.Reader reader = null;
-    try {
+    try (Scope scope = TraceUtil.createTrace(msg)) {
       reader = WALFactory.createReader(fs, edits, conf);
       long currentEditSeqId = -1;
       long currentReplaySeqId = -1;
@@ -5126,7 +5127,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     // we will use writestate as a coarse-grain lock for all the replay events
     // (flush, compaction, region open etc)
     synchronized (writestate) {
-      try {
+      try (Scope scope = TraceUtil.createTrace("Preparing flush " + this)) {
         if (flush.getFlushSequenceNumber() < lastReplayedOpenRegionSeqId) {
           LOG.warn(getRegionInfo().getEncodedName() + " : "
               + "Skipping replaying flush event :" + TextFormat.shortDebugString(flush)
@@ -5226,7 +5227,7 @@ public class HRegion implements HeapSize, PropagatingConfigurationObserver, Regi
     // region server crashes. In those cases, we may receive replay requests out of order from
     // the original seqIds.
     synchronized (writestate) {
-      try {
+      try (Scope scope = TraceUtil.createTrace("Committing flush" + this)) {
         if (flush.getFlushSequenceNumber() < lastReplayedOpenRegionSeqId) {
           LOG.warn(getRegionInfo().getEncodedName() + " : "
             + "Skipping replaying flush event :" + TextFormat.shortDebugString(flush)

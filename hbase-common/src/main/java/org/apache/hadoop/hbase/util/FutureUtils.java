@@ -27,7 +27,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.exceptions.TimeoutIOException;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,6 +75,23 @@ public final class FutureUtils {
       }
     });
   }
+
+  /*@SuppressWarnings("FutureReturnValueIgnored")
+  public static <T> void addListener(CompletableFuture<T> future,
+    BiConsumer<? super T, ? super Throwable> action, final String description, final Span span) {
+    future.whenComplete((resp, error) -> {
+      try (Scope scope = TraceUtil.createTrace(description, span)) {
+        // See this post on stack overflow(shorten since the url is too long),
+        // https://s.apache.org/completionexception
+        // For a chain of CompleableFuture, only the first child CompletableFuture can get the
+        // original exception, others will get a CompletionException, which wraps the original
+        // exception. So here we unwrap it before passing it to the callback action.
+        action.accept(resp, unwrapCompletionException(error));
+      } catch (Throwable t) {
+        LOG.error("Unexpected error caught when processing CompletableFuture", t);
+      }
+    });
+  }*/
 
   /**
    * Almost the same with {@link #addListener(CompletableFuture, BiConsumer)} method above, the only

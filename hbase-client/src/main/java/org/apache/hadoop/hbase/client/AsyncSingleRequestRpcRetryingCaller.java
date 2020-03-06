@@ -22,6 +22,8 @@ import static org.apache.hadoop.hbase.util.FutureUtils.addListener;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.ipc.HBaseRpcController;
@@ -41,7 +43,7 @@ class AsyncSingleRequestRpcRetryingCaller<T> extends AsyncRpcRetryingCaller<T> {
   @FunctionalInterface
   public interface Callable<T> {
     CompletableFuture<T> call(HBaseRpcController controller, HRegionLocation loc,
-        ClientService.Interface stub);
+        ClientService.Interface stub, Span span);
   }
 
   private final TableName tableName;
@@ -57,9 +59,9 @@ class AsyncSingleRequestRpcRetryingCaller<T> extends AsyncRpcRetryingCaller<T> {
   public AsyncSingleRequestRpcRetryingCaller(Timer retryTimer, AsyncConnectionImpl conn,
       TableName tableName, byte[] row, int replicaId, RegionLocateType locateType,
       Callable<T> callable, int priority, long pauseNs, long pauseForCQTBENs, int maxAttempts,
-      long operationTimeoutNs, long rpcTimeoutNs, int startLogErrorsCnt) {
+      long operationTimeoutNs, long rpcTimeoutNs, int startLogErrorsCnt, Span span) {
     super(retryTimer, conn, priority, pauseNs, pauseForCQTBENs, maxAttempts, operationTimeoutNs,
-      rpcTimeoutNs, startLogErrorsCnt);
+      rpcTimeoutNs, startLogErrorsCnt, span);
     this.tableName = tableName;
     this.row = row;
     this.replicaId = replicaId;
@@ -79,7 +81,8 @@ class AsyncSingleRequestRpcRetryingCaller<T> extends AsyncRpcRetryingCaller<T> {
       return;
     }
     resetCallTimeout();
-    addListener(callable.call(controller, loc, stub), (result, error) -> {
+    addListener(callable.call(controller, loc, stub, span), (result, error) -> {
+
       if (error != null) {
         onError(error,
           () -> "Call to " + loc.getServerName() + " for '" + Bytes.toStringBinary(row) + "' in " +

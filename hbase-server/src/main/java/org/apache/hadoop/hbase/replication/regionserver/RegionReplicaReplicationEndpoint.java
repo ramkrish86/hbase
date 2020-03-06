@@ -30,6 +30,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HBaseIOException;
@@ -44,6 +47,7 @@ import org.apache.hadoop.hbase.client.RegionReplicaUtil;
 import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.replication.HBaseReplicationEndpoint;
 import org.apache.hadoop.hbase.replication.WALEntryFilter;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.AtomicUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FutureUtils;
@@ -205,13 +209,14 @@ public class RegionReplicaReplicationEndpoint extends HBaseReplicationEndpoint {
     AtomicInteger remainingTasks = new AtomicInteger(locs.size() - 1);
     AtomicLong skippedEdits = new AtomicLong(0);
 
+    Span span = TraceUtil.getTracer().activeSpan();
     for (int i = 1, n = locs.size(); i < n; i++) {
       // Do not use the elements other than the default replica as they may be null. We will fail
       // earlier if the location for default replica is null.
       final RegionInfo replica = RegionReplicaUtil.getRegionInfoForReplica(defaultReplica, i);
       FutureUtils
         .addListener(connection.replay(tableDesc.getTableName(), replica.getEncodedNameAsBytes(),
-          row, entries, replica.getReplicaId(), numRetries, operationTimeoutNs), (r, e) -> {
+          row, entries, replica.getReplicaId(), numRetries, operationTimeoutNs, span), (r, e) -> {
             if (e != null) {
               LOG.warn("Failed to replicate to {}", replica, e);
               error.compareAndSet(null, e);

@@ -18,6 +18,9 @@
  */
 package org.apache.hadoop.hbase.zookeeper;
 
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.hadoop.hbase.Abortable;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.apache.zookeeper.KeeperException;
@@ -47,6 +50,8 @@ public abstract class ZKNodeTracker extends ZKListener {
   protected final Abortable abortable;
 
   private boolean stopped = false;
+
+  //private Span span;
 
   /**
    * Constructs a new ZK node tracker.
@@ -120,6 +125,8 @@ public abstract class ZKNodeTracker extends ZKListener {
     if (timeout < 0) {
       throw new IllegalArgumentException();
     }
+
+    //span = GlobalTracer.get().activeSpan();
 
     boolean notimeout = timeout == 0;
     long startTime = System.currentTimeMillis();
@@ -195,7 +202,7 @@ public abstract class ZKNodeTracker extends ZKListener {
       return;
     }
 
-    try {
+    try /*(Scope scope = GlobalTracer.get().scopeManager().activate(span, false))*/ {
       byte [] data = ZKUtil.getDataAndWatch(watcher, node);
       if (data != null) {
         this.data = data;

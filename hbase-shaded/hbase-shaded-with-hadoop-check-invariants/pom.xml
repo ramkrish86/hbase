@@ -111,8 +111,9 @@
                     <exclude>com.github.stephenc.findbugs:*</exclude>
                     <!-- We leave HTrace as an unshaded dependnecy on purpose so that tracing within a JVM will work -->
                     <exclude>org.apache.htrace:*</exclude>
-                    <exclude>io.opentracing:*</exclude>
-                    <exclude>io.jaegertracing:*</exclude>
+		    <exclude>io.opentracing:*</exclude>
+		    <exclude>io.opentracing.contrib:*</exclude>
+		    <exclude>org.apache.hbase.thirdparty:hbase-shaded-jaeger</exclude>
                     <!-- NB we don't exclude Hadoop from this check here, because the assumption is any needed classes
                          are contained in our artifacts.
                       -->

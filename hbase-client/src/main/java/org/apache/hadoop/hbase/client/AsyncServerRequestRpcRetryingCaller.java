@@ -21,6 +21,8 @@ import static org.apache.hadoop.hbase.util.FutureUtils.addListener;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
+
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.ipc.HBaseRpcController;
@@ -47,9 +49,9 @@ public class AsyncServerRequestRpcRetryingCaller<T> extends AsyncRpcRetryingCall
 
   public AsyncServerRequestRpcRetryingCaller(Timer retryTimer, AsyncConnectionImpl conn,
       long pauseNs, long pauseForCQTBENs, int maxAttempts, long operationTimeoutNs,
-      long rpcTimeoutNs, int startLogErrorsCnt, ServerName serverName, Callable<T> callable) {
+      long rpcTimeoutNs, int startLogErrorsCnt, ServerName serverName, Callable<T> callable, Span span) {
     super(retryTimer, conn, HConstants.NORMAL_QOS, pauseNs, pauseForCQTBENs, maxAttempts,
-      operationTimeoutNs, rpcTimeoutNs, startLogErrorsCnt);
+      operationTimeoutNs, rpcTimeoutNs, startLogErrorsCnt, span);
     this.serverName = serverName;
     this.callable = callable;
   }

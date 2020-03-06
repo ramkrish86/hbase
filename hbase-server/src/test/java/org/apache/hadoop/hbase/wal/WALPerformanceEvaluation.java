@@ -176,7 +176,7 @@ public final class WALPerformanceEvaluation extends Configured implements Tool {
       try (Scope threadScope = TraceUtil.createTrace("WALPerfEval." + Thread.currentThread().getName())) {
         long startTime = System.currentTimeMillis();
         int lastSync = 0;
-        TraceUtil.addSampler(loopSampler);
+        //TraceUtil.addSampler(loopSampler);
         for (int i = 0; i < numIterations; ++i) {
           assert GlobalTracer.get().activeSpan().equals(threadScope.span()) : "Span leak detected.";
           try (Scope loopScope = TraceUtil.createTrace("runLoopIter" + i)) {
@@ -314,7 +314,8 @@ public final class WALPerformanceEvaluation extends Configured implements Tool {
     SpanReceiverHost receiverHost = trace ? SpanReceiverHost.getInstance(getConf()) : null;
     final SamplerConfiguration
         sampler = trace ? Sampler.ALWAYS : Sampler.NEVER;
-    TraceUtil.addSampler(sampler);
+    TraceUtil.initTracer(getConf(), "WALPutBenchmark");
+    //TraceUtil.addSampler(sampler);
     Scope scope = TraceUtil.createTrace("WALPerfEval");
 
     try {

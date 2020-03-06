@@ -108,7 +108,7 @@ class RegionCoprocessorRpcChannelImpl implements RpcChannel {
       conn.callerFactory.<Message> single().table(tableName).row(row)
         .locateType(RegionLocateType.CURRENT).rpcTimeout(rpcTimeoutNs, TimeUnit.NANOSECONDS)
         .operationTimeout(operationTimeoutNs, TimeUnit.NANOSECONDS)
-        .action((c, l, s) -> rpcCall(method, request, responsePrototype, c, l, s)).call(),
+        .action((c, l, s, span) -> rpcCall(method, request, responsePrototype, c, l, s)).call(),
       (r, e) -> {
         if (e != null) {
           setCoprocessorError(controller, e);

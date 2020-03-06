@@ -51,7 +51,7 @@ public class HRegionServerCommandLine extends ServerCommandLine {
 
   private int start() throws Exception {
     Configuration conf = getConf();
-    TraceUtil.initTracer(conf);
+    TraceUtil.initTracer(conf, "RegionServer");
     try {
       // If 'local', don't start a region server here. Defer to
       // LocalHBaseCluster. It manages 'local' clusters.

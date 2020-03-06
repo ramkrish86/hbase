@@ -28,6 +28,10 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ClusterId;
@@ -36,6 +40,7 @@ import org.apache.hadoop.hbase.RegionLocations;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.exceptions.DeserializationException;
 import org.apache.hadoop.hbase.master.RegionState;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.zookeeper.ReadOnlyZKClient;
 import org.apache.hadoop.hbase.zookeeper.ZNodePaths;
@@ -93,7 +98,9 @@ class ZKAsyncRegistry implements AsyncRegistry {
 
   @Override
   public CompletableFuture<String> getClusterId() {
-    return getAndConvert(znodePaths.clusterIdZNode, ZKAsyncRegistry::getClusterId);
+    try (Scope scope = TraceUtil.createTrace("getClusterId")) {
+      return getAndConvert(znodePaths.clusterIdZNode, ZKAsyncRegistry::getClusterId);
+    }
   }
 
   @VisibleForTesting
@@ -193,6 +200,7 @@ class ZKAsyncRegistry implements AsyncRegistry {
   @Override
   public CompletableFuture<RegionLocations> getMetaRegionLocation() {
     CompletableFuture<RegionLocations> future = new CompletableFuture<>();
+    //final Span span = GlobalTracer.get().activeSpan();
     addListener(
       zk.list(znodePaths.baseZNode)
         .thenApply(children -> children.stream()
@@ -202,8 +210,11 @@ class ZKAsyncRegistry implements AsyncRegistry {
           future.completeExceptionally(error);
           return;
         }
-        getMetaRegionLocation(future, metaReplicaZNodes);
-      });
+        // FIXME: create a continued span, not a root.
+        try (Scope scope = TraceUtil.createRootTrace("getMetaRegionLocation")) {
+          getMetaRegionLocation(future, metaReplicaZNodes);
+        }
+      }/*, "getMetaRegionLocation", span*/);
     return future;
   }
 

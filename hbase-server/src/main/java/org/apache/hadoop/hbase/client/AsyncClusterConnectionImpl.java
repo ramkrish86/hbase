@@ -20,6 +20,8 @@ package org.apache.hadoop.hbase.client;
 import java.net.SocketAddress;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.RegionLocations;
@@ -79,10 +81,10 @@ class AsyncClusterConnectionImpl extends AsyncConnectionImpl implements AsyncClu
 
   @Override
   public CompletableFuture<Long> replay(TableName tableName, byte[] encodedRegionName, byte[] row,
-      List<Entry> entries, int replicaId, int retries, long operationTimeoutNs) {
+      List<Entry> entries, int replicaId, int retries, long operationTimeoutNs, Span span) {
     return new AsyncRegionReplicaReplayRetryingCaller(RETRY_TIMER, this,
       ConnectionUtils.retries2Attempts(retries), operationTimeoutNs, tableName, encodedRegionName,
-      row, entries, replicaId).call();
+      row, entries, replicaId, span).call();
   }
 
   @Override
@@ -94,7 +96,7 @@ class AsyncClusterConnectionImpl extends AsyncConnectionImpl implements AsyncClu
   @Override
   public CompletableFuture<String> prepareBulkLoad(TableName tableName) {
     return callerFactory.<String> single().table(tableName).row(HConstants.EMPTY_START_ROW)
-      .action((controller, loc, stub) -> ConnectionUtils
+      .action((controller, loc, stub, span) -> ConnectionUtils
         .<TableName, PrepareBulkLoadRequest, PrepareBulkLoadResponse, String> call(controller, loc,
           stub, tableName, (rn, tn) -> {
             RegionSpecifier region =
@@ -111,7 +113,7 @@ class AsyncClusterConnectionImpl extends AsyncConnectionImpl implements AsyncClu
     List<Pair<byte[], String>> familyPaths, byte[] row, boolean assignSeqNum, Token<?> userToken,
     String bulkToken, boolean copyFiles, List<String> clusterIds, boolean replicate) {
     return callerFactory.<Boolean> single().table(tableName).row(row)
-      .action((controller, loc, stub) -> ConnectionUtils
+      .action((controller, loc, stub, span) -> ConnectionUtils
         .<Void, BulkLoadHFileRequest, BulkLoadHFileResponse, Boolean> call(controller, loc, stub,
           null,
           (rn, nil) -> RequestConverter.buildBulkLoadHFileRequest(familyPaths, rn, assignSeqNum,
@@ -123,7 +125,7 @@ class AsyncClusterConnectionImpl extends AsyncConnectionImpl implements AsyncClu
   @Override
   public CompletableFuture<Void> cleanupBulkLoad(TableName tableName, String bulkToken) {
     return callerFactory.<Void> single().table(tableName).row(HConstants.EMPTY_START_ROW)
-      .action((controller, loc, stub) -> ConnectionUtils
+      .action((controller, loc, stub, span) -> ConnectionUtils
         .<String, CleanupBulkLoadRequest, CleanupBulkLoadResponse, Void> call(controller, loc, stub,
           bulkToken, (rn, bt) -> {
             RegionSpecifier region =

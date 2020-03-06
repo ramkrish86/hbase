@@ -37,6 +37,7 @@ import org.apache.hadoop.hbase.procedure2.ProcedureYieldException;
 import org.apache.hadoop.hbase.procedure2.RemoteProcedureDispatcher;
 import org.apache.hadoop.hbase.procedure2.RemoteProcedureDispatcher.RemoteProcedure;
 import org.apache.hadoop.hbase.procedure2.RemoteProcedureException;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.RetryCounter;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
@@ -82,6 +83,7 @@ public abstract class RegionRemoteProcedureBase extends Procedure<MasterProcedur
     this.region = region;
     this.targetServer = targetServer;
     parent.attachRemoteProc(this);
+    this.spanContext = TraceUtil.getTracer().activeSpan().context();
   }
 
   @Override

@@ -110,7 +110,7 @@ public class TestAsyncSingleRequestRpcRetryingCaller {
     try {
       CONN.callerFactory.single().table(TABLE_NAME).row(ROW).operationTimeout(1, TimeUnit.DAYS)
         .maxAttempts(3).pause(10, TimeUnit.MILLISECONDS)
-        .action((controller, loc, stub) -> failedFuture()).call().get();
+        .action((controller, loc, stub, span) -> failedFuture()).call().get();
       fail();
     } catch (ExecutionException e) {
       assertThat(e.getCause(), instanceOf(RetriesExhaustedException.class));
@@ -123,7 +123,7 @@ public class TestAsyncSingleRequestRpcRetryingCaller {
     try {
       CONN.callerFactory.single().table(TABLE_NAME).row(ROW).operationTimeout(1, TimeUnit.SECONDS)
         .pause(100, TimeUnit.MILLISECONDS).maxAttempts(Integer.MAX_VALUE)
-        .action((controller, loc, stub) -> failedFuture()).call().get();
+        .action((controller, loc, stub, span) -> failedFuture()).call().get();
       fail();
     } catch (ExecutionException e) {
       e.printStackTrace();

@@ -19,6 +19,8 @@ package org.apache.hadoop.hbase.client;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.RegionLocations;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
@@ -61,7 +63,7 @@ public interface AsyncClusterConnection extends AsyncConnection {
    * original return value is useless.
    */
   CompletableFuture<Long> replay(TableName tableName, byte[] encodedRegionName, byte[] row,
-      List<Entry> entries, int replicaId, int numRetries, long operationTimeoutNs);
+      List<Entry> entries, int replicaId, int numRetries, long operationTimeoutNs, Span span);
 
   /**
    * Return all the replicas for a region. Used for region replica replication.

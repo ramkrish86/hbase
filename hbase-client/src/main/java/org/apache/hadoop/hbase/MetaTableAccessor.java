@@ -37,6 +37,8 @@ import java.util.SortedMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import io.opentracing.Scope;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell.Type;
 import org.apache.hadoop.hbase.client.Connection;
@@ -70,6 +72,7 @@ import org.apache.hadoop.hbase.protobuf.generated.ClientProtos;
 import org.apache.hadoop.hbase.protobuf.generated.MultiRowMutationProtos.MultiRowMutationService;
 import org.apache.hadoop.hbase.protobuf.generated.MultiRowMutationProtos.MutateRowsRequest;
 import org.apache.hadoop.hbase.protobuf.generated.MultiRowMutationProtos.MutateRowsResponse;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.ExceptionUtil;
@@ -770,7 +773,8 @@ public class MetaTableAccessor {
     }
 
     int currentRow = 0;
-    try (Table metaTable = getMetaHTable(connection)) {
+    try (Scope scope = TraceUtil.createTrace("Scanning META ");
+      Table metaTable = getMetaHTable(connection)) {
       try (ResultScanner scanner = metaTable.getScanner(scan)) {
         Result data;
         while ((data = scanner.next()) != null) {

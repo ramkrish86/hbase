@@ -80,24 +80,15 @@ public class SpanReceiverHost {
    * and instantiates and registers them with the Tracer.
    */
   public void loadSpanReceivers() {
-    String[] receiverNames = conf.getStrings(SPAN_RECEIVERS_CONF_KEY);
-    if (receiverNames == null || receiverNames.length == 0) {
-      return;
-    }
-
-    SpanReceiver.Builder builder = new SpanReceiver.Builder(new HBaseHTraceConfiguration(conf));
-    for (String className : receiverNames) {
-      className = className.trim();
-
-      SpanReceiver receiver = builder.className(className).build();
-      if (receiver != null) {
-        receivers.add(receiver);
-        LOG.info("SpanReceiver {} was loaded successfully.", className);
-      }
-    }
-    for (SpanReceiver rcvr : receivers) {
-      //TraceUtil.addReceiver(rcvr);
-    }
+    /*
+     * String[] receiverNames = conf.getStrings(SPAN_RECEIVERS_CONF_KEY); if (receiverNames == null
+     * || receiverNames.length == 0) { return; } SpanReceiver.Builder builder = new
+     * SpanReceiver.Builder(new HBaseHTraceConfiguration(conf)); for (String className :
+     * receiverNames) { className = className.trim(); SpanReceiver receiver =
+     * builder.className(className).build(); if (receiver != null) { receivers.add(receiver);
+     * LOG.info("SpanReceiver {} was loaded successfully.", className); } } for (SpanReceiver rcvr :
+     * receivers) { //TraceUtil.addReceiver(rcvr); }
+     */
   }
 
   /**

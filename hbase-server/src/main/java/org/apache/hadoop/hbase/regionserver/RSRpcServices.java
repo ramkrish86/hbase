@@ -43,6 +43,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
+
+import io.opentracing.Scope;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -136,6 +138,7 @@ import org.apache.hadoop.hbase.security.access.AccessChecker;
 import org.apache.hadoop.hbase.security.access.NoopAccessChecker;
 import org.apache.hadoop.hbase.security.access.Permission;
 import org.apache.hadoop.hbase.security.access.ZKPermissionWatcher;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.DNS;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
@@ -2946,6 +2949,10 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
           break;
         case PUT:
           Put put = ProtobufUtil.toPut(mutation, cellScanner);
+          LOG.info("Got the mutation "+put);
+          if (TraceUtil.getTracer().activeSpan() != null) {
+            LOG.info(TraceUtil.getTracer().activeSpan().toString());
+          }
           checkCellSizeLimit(region, put);
           // Throws an exception when violated
           spaceQuotaEnforcement.getPolicyEnforcement(region).check(put);
@@ -3795,7 +3802,7 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
   @QosPriority(priority = HConstants.ADMIN_QOS)
   public ExecuteProceduresResponse executeProcedures(RpcController controller,
       ExecuteProceduresRequest request) throws ServiceException {
-    try {
+    try /*(Scope scope = TraceUtil.createRootTrace("executeProcedures"))*/ {
       checkOpen();
       throwOnWrongStartCode(request);
       regionServer.getRegionServerCoprocessorHost().preExecuteProcedures();

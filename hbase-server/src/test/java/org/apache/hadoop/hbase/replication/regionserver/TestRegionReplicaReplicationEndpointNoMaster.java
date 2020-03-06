@@ -202,7 +202,7 @@ public class TestRegionReplicaReplicationEndpointNoMaster {
       RegionLocations locations = connection.getRegionLocations(tableName, row, true).get();
       connection
         .replay(tableName, locations.getRegionLocation(1).getRegion().getEncodedNameAsBytes(), row,
-          Collections.singletonList(entry), 1, Integer.MAX_VALUE, TimeUnit.SECONDS.toNanos(10))
+          Collections.singletonList(entry), 1, Integer.MAX_VALUE, TimeUnit.SECONDS.toNanos(10), null)
         .get();
     }
   }
