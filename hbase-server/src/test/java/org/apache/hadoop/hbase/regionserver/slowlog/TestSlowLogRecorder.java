@@ -513,6 +513,12 @@ public class TestSlowLogRecorder {
       @Override
       public void incrementResponseExceptionSize(long exceptionSize) {
       }
+
+	@Override
+	public io.opentracing.SpanContext getSpanContext() {
+		// TODO Auto-generated method stub
+		return null;
+	}
     };
     return rpcCall;
   }

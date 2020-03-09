@@ -17,77 +17,200 @@
  */
 package org.apache.hadoop.hbase.trace;
 
+import io.opentracing.Scope;
+import io.opentracing.ScopeManager;
+import io.opentracing.SpanContext;
+import io.opentracing.mock.MockTracer;
+import io.opentracing.noop.NoopScopeManager;
+import io.opentracing.noop.NoopSpanBuilder;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapExtractAdapter;
+import io.opentracing.propagation.TextMapInjectAdapter;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.Tracer;
+import io.opentracing.propagation.Format;
+import io.opentracing.propagation.TextMapExtractAdapter;
+import io.opentracing.propagation.TextMapInjectAdapter;
+import io.opentracing.util.GlobalTracer;
+import org.apache.commons.codec.binary.Hex;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.htrace.core.HTraceConfiguration;
 import org.apache.htrace.core.Sampler;
-import org.apache.htrace.core.Span;
 import org.apache.htrace.core.SpanReceiver;
 import org.apache.htrace.core.TraceScope;
-import org.apache.htrace.core.Tracer;
+
+import io.jaegertracing.Configuration.ReporterConfiguration;
+import io.jaegertracing.Configuration.SamplerConfiguration;
+import io.jaegertracing.Configuration.SenderConfiguration;
+import io.jaegertracing.internal.senders.SenderResolver;
+
+import org.apache.hadoop.tracing.TraceUtils;
+import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.yetus.audience.InterfaceAudience;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This wrapper class provides functions for accessing htrace 4+ functionality in a simplified way.
  */
 @InterfaceAudience.Private
 public final class TraceUtil {
-  private static HTraceConfiguration conf;
-  private static Tracer tracer;
+  static final Logger LOG = LoggerFactory.getLogger(TraceUtils.class);
+
+  private static io.jaegertracing.Configuration conf;
+  private static io.opentracing.Tracer tracer;
+
+  public static final String HBASE_OPENTRACING_TRACER = "hbase.opentracing.tracer";
+  public static final String HBASE_OPENTRACING_TRACER_DEFAULT = "jaeger";
+  public static final String HBASE_OPENTRACING_MOCKTRACER = "mock";
 
   private TraceUtil() {
   }
 
-  public static void initTracer(Configuration c) {
-    if (c != null) {
-      conf = new HBaseHTraceConfiguration(c);
-    }
+	static class NoopTracer implements Tracer {
 
-    if (tracer == null && conf != null) {
-      tracer = new Tracer.Builder("Tracer").conf(conf).build();
+		@Override
+		public ScopeManager scopeManager() {
+			return NoopScopeManager.INSTANCE;
+		}
+
+		@Override
+		public Span activeSpan() {
+			return null;
+		}
+
+		@Override
+		public SpanBuilder buildSpan(String operationName) {
+			return NoopSpanBuilder.INSTANCE;
+		}
+
+		@Override
+		public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {
+		}
+
+		@Override
+		public <C> SpanContext extract(Format<C> format, C carrier) {
+			return NoopSpanBuilder.INSTANCE;
+		}
+
+		@Override
+		public String toString() {
+			return NoopTracer.class.getSimpleName();
+		}
+
+	}
+
+  public static void initTracer(Configuration c, String serviceName) {
+    // todo : don register with global tracer
+    conf = io.jaegertracing.Configuration.fromEnv(serviceName);
+    if (!GlobalTracer.isRegistered()) {
+      switch (c.get(HBASE_OPENTRACING_TRACER, HBASE_OPENTRACING_TRACER_DEFAULT)) {
+        case HBASE_OPENTRACING_TRACER_DEFAULT:
+          if (serviceName.equalsIgnoreCase("HRegionServer")) {
+            conf.withSampler(org.apache.hadoop.hbase.trace.Sampler.ALWAYS);
+            conf.withReporter(ReporterConfiguration.fromEnv().withLogSpans(true));
+            tracer = conf.getTracerBuilder().build();
+          } else {
+            tracer = conf.getTracerBuilder().build();
+          }
+          break;
+        case HBASE_OPENTRACING_MOCKTRACER:
+          tracer = new MockTracer();
+          break;
+        default:
+          throw new RuntimeException("Unexpected tracer");
+      }
+      /*
+       * io.jaegertracing.spi.Sampler sampler = new ConstSampler(true); conf =
+       * io.jaegertracing.Configuration.fromEnv(serviceName); io.opentracing.Tracer tracer =
+       * conf.getTracerBuilder().withSampler(sampler).build();
+       */
+      // GlobalTracer.register(tracer);
+      LOG.debug("The tracer is " + tracer + " " + serviceName);
     }
   }
 
+	  /*@VisibleForTesting
+  public static void registerTracerForTest(Tracer tracer) {
+    TraceUtil.tracer = tracer;
+    GlobalTracer.register(tracer);
+  }*/
+
+  public static Tracer getTracer() {
+    return tracer;
+  }
+
   /**
-   * Wrapper method to create new TraceScope with the given description
-   * @return TraceScope or null when not tracing
+   * Wrapper method to create new Scope with the given description
+   * @return Scope or null when not tracing
    */
-  public static TraceScope createTrace(String description) {
-    return (tracer == null) ? null : tracer.newScope(description);
+  public static Scope createTrace(String description) {
+    return (tracer == null) ? null :
+        tracer.buildSpan(description).startActive(true);
   }
 
   /**
-   * Wrapper method to create new child TraceScope with the given description
+   * Wrapper method to create new child Scope with the given description
    * and parent scope's spanId
    * @param span parent span
-   * @return TraceScope or null when not tracing
+   * @return Scope or null when not tracing
    */
-  public static TraceScope createTrace(String description, Span span) {
-    if (span == null) {
-      return createTrace(description);
-    }
+  public static Scope createTrace(String description, Span span) {
+    if(span == null) return createTrace(description);
 
-    return (tracer == null) ? null : tracer.newScope(description, span.getSpanId());
+    return (tracer == null) ? null : tracer.buildSpan(description).
+        asChildOf(span).startActive(true);
+  }
+
+  public static Scope createTrace(String description, SpanContext spanContext) {
+    if(spanContext == null) return createTrace(description);
+
+    return (tracer == null) ? null : tracer.buildSpan(description).
+        asChildOf(spanContext).startActive(true);
   }
 
   /**
    * Wrapper method to add new sampler to the default tracer
    * @return true if added, false if it was already added
    */
-  public static boolean addSampler(Sampler sampler) {
-    if (sampler == null) {
-      return false;
-    }
+	public static boolean addSampler(SamplerConfiguration sampler) {
+		if (sampler == null) {
+			return false;
+		}
+		io.jaegertracing.Configuration conf = io.jaegertracing.Configuration.fromEnv("PE");
 
-    return (tracer == null) ? false : tracer.addSampler(sampler);
+		ReporterConfiguration reporterConfig = ReporterConfiguration.fromEnv().withLogSpans(true);
+		SenderConfiguration c = new SenderConfiguration();
+		SenderResolver.resolve();
+		io.jaegertracing.Configuration config = new io.jaegertracing.Configuration("PE").withSampler(sampler)
+				.withReporter(reporterConfig);
+		conf = config.withSampler(sampler);
+		tracer = conf.getTracerBuilder().build();
+		return true;
+	}
+
+  public static void convert() {
+    // just adding this to see if things work
+    LOG.info("Updating the tracer");
+    tracer = new NoopTracer();
   }
 
   /**
    * Wrapper method to add key-value pair to TraceInfo of actual span
    */
   public static void addKVAnnotation(String key, String value){
-    Span span = Tracer.getCurrentSpan();
+    Span span = tracer.activeSpan();
     if (span != null) {
-      span.addKVAnnotation(key, value);
+      span.setTag(key, value);
     }
   }
 
@@ -95,25 +218,25 @@ public final class TraceUtil {
    * Wrapper method to add receiver to actual tracerpool
    * @return true if successfull, false if it was already added
    */
-  public static boolean addReceiver(SpanReceiver rcvr) {
+  /*public static boolean addReceiver(SpanReceiver rcvr) {
     return (tracer == null) ? false : tracer.getTracerPool().addReceiver(rcvr);
-  }
+  }*/
 
   /**
    * Wrapper method to remove receiver from actual tracerpool
    * @return true if removed, false if doesn't exist
    */
-  public static boolean removeReceiver(SpanReceiver rcvr) {
+  /*public static boolean removeReceiver(SpanReceiver rcvr) {
     return (tracer == null) ? false : tracer.getTracerPool().removeReceiver(rcvr);
-  }
+  }*/
 
   /**
    * Wrapper method to add timeline annotiation to current span with given message
    */
   public static void addTimelineAnnotation(String msg) {
-    Span span = Tracer.getCurrentSpan();
+    Span span = tracer.activeSpan();
     if (span != null) {
-      span.addTimelineAnnotation(msg);
+      span.log(msg);
     }
   }
 
@@ -123,6 +246,61 @@ public final class TraceUtil {
    * @return wrapped runnable or original runnable when not tracing
    */
   public static Runnable wrap(Runnable runnable, String description) {
-    return (tracer == null) ? runnable : tracer.wrap(runnable, description);
+    //return (tracer == null) ? runnable : tracer.wrap(runnable, description);
+    return runnable;
+  }
+
+  public static SpanContext byteArrayToSpanContext(byte[] byteArray) {
+    if (byteArray == null || byteArray.length == 0) {
+      LOG.debug("The provided serialized context was null or empty");
+      return null;
+    }
+
+    SpanContext context = null;
+    ByteArrayInputStream stream = new ByteArrayInputStream(byteArray);
+
+    try {
+      ObjectInputStream objStream = new ObjectInputStream(stream);
+      Map<String, String> carrier = (Map<String, String>) objStream.readObject();
+
+      context = tracer.extract(Format.Builtin.TEXT_MAP,
+        new TextMapExtractAdapter(carrier));
+    } catch (Exception e) {
+      LOG.warn("Could not deserialize context {}", Hex.encodeHexString(byteArray), e);
+    }
+
+    return context;
+  }
+
+  public static byte[] spanContextToByteArray(SpanContext context) {
+    if (context == null) {
+      LOG.debug("No SpanContext was provided");
+      return null;
+    }
+
+    Map<String, String> carrier = new HashMap<String, String>();
+    tracer.inject(context, Format.Builtin.TEXT_MAP,
+      new TextMapInjectAdapter(carrier));
+    if (carrier.isEmpty()) {
+      LOG.warn("SpanContext was not properly injected by the Tracer.");
+      return null;
+    }
+
+    byte[] byteArray = null;
+    ByteArrayOutputStream stream = new ByteArrayOutputStream();
+
+    try {
+      ObjectOutputStream objStream = new ObjectOutputStream(stream);
+      objStream.writeObject(carrier);
+      objStream.flush();
+
+      byteArray = stream.toByteArray();
+      LOG.debug("SpanContext serialized, resulting byte length is {}",
+        byteArray.length);
+    } catch (IOException e) {
+      LOG.warn("Could not serialize context {}", context, e);
+    }
+
+    return byteArray;
   }
 }

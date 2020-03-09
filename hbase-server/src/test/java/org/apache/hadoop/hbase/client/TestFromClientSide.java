@@ -102,6 +102,7 @@ import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.NoSuchColumnFamilyException;
 import org.apache.hadoop.hbase.testclassification.ClientTests;
 import org.apache.hadoop.hbase.testclassification.LargeTests;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.FSUtils;
@@ -4025,6 +4026,8 @@ public class TestFromClientSide {
 
       assertTrue(Bytes.equals(CellUtil.cloneValue(kv), value));
 
+      table.put(put);
+      TraceUtil.convert();
       table.put(put);
 
       Scan scan = new Scan();
