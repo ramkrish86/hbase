@@ -178,7 +178,8 @@ public final class WALPerformanceEvaluation extends Configured implements Tool {
         int lastSync = 0;
         //TraceUtil.addSampler(loopSampler);
         for (int i = 0; i < numIterations; ++i) {
-          assert GlobalTracer.get().activeSpan().equals(threadScope.span()) : "Span leak detected.";
+          assert TraceUtil.getTracer().activeSpan()
+              .equals(TraceUtil.getTracer().scopeManager().activeSpan()) : "Span leak detected.";
           try (Scope loopScope = TraceUtil.createTrace("runLoopIter" + i)) {
             long now = System.nanoTime();
             Put put = setupPut(rand, key, value, numFamilies);

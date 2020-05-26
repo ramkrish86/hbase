@@ -23,11 +23,11 @@
 <configuration>
   <property>
     <name>hbase.rootdir</name>
-    <value>file:///Users/weichiu/hbase_home</value>
+    <value>file:///home/ramvasu/datadir</value>
   </property>
   <property>
     <name>hbase.zookeeper.property.dataDir</name>
-    <value>/Users/weichiu/zookeeper_data</value>
+    <value>/home/ramvasu/zookeeper_data</value>
   </property>
   <property>
     <name>hbase.unsafe.stream.capability.enforce</name>

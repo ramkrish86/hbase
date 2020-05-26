@@ -432,7 +432,7 @@ public class IntegrationTestMTTR {
         Span span = null;
         try (Scope scope = TraceUtil.createTrace(getSpanName())) {
           if (scope != null) {
-            span = scope.span();
+            span =  TraceUtil.getTracer().scopeManager().activeSpan();
           }
           boolean actionResult = doAction();
           if (actionResult && future.isDone()) {

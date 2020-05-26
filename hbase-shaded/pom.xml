@@ -39,7 +39,7 @@
       <shaded.prefix>org.apache.hadoop.hbase.shaded</shaded.prefix>
     </properties>
     <modules>
-        <module>hbase-shaded-client-byo-hadoop</module>
+	    <!--<module>hbase-shaded-client-byo-hadoop</module>-->
         <module>hbase-shaded-client</module>
         <module>hbase-shaded-mapreduce</module>
         <module>hbase-shaded-testing-util</module>
@@ -150,6 +150,7 @@
                                         <exclude>com.github.stephenc.findbugs:*</exclude>
                                         <exclude>org.apache.htrace:*</exclude>
                                         <exclude>io.opentracing:*</exclude>
+					<exclude>io.opentelemetry:.*</exclude>
 					<exclude>io.opentracing.contrib:*</exclude>
 					<exclude>org.apache.hbase.thirdparty:hbase-shaded-jaeger</exclude>
                                         <exclude>org.apache.yetus:*</exclude>

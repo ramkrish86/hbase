@@ -154,8 +154,8 @@ public class CallRunner {
         }
       } finally {
         if (traceScope != null) {
-          Span span = traceScope.span();
-          TraceUtil.LOG.debug("The final trace is "+span.toString());
+         // Span span = traceScope.span();
+          //TraceUtil.LOG.debug("The final trace is "+span.toString());
           traceScope.close();
         }
         RpcServer.CurCall.set(null);

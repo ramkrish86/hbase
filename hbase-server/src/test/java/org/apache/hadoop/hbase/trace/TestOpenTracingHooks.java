@@ -81,7 +81,7 @@ public class TestOpenTracingHooks {
     Table table;
     MockSpan createTableSpan;
     try (Scope scope = TraceUtil.createTrace("creating table")) {
-      createTableSpan = (MockSpan)scope.span();
+      createTableSpan = (MockSpan)TraceUtil.getTracer().scopeManager().activeSpan();
       table = TEST_UTIL.createTable(TableName.valueOf(name.getMethodName()), FAMILY_BYTES);
     }
 
@@ -117,7 +117,7 @@ public class TestOpenTracingHooks {
     MockSpan putSpan;
 
     try (Scope scope = TraceUtil.createTrace("doing put")) {
-      putSpan = (MockSpan)scope.span();
+      putSpan = (MockSpan)TraceUtil.getTracer().scopeManager().activeSpan();
       table.put(put);
     }
 

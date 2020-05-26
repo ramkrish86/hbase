@@ -1310,6 +1310,33 @@ Copyright (c) 2010-2011 Oracle and/or its affiliates.
     </project>
   </supplement>
   <supplement>
+
+	    <project>
+
+	      <groupId>io.grpc</groupId>
+
+	      <artifactId>grpc-context</artifactId>
+
+	      <version>1.28.0</version>
+
+	      <licenses>
+
+	        <license>
+
+	          <name>Apache License, Version 2.0</name>
+
+	          <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+
+	          <distribution>repo</distribution>
+
+	        </license>
+
+	      </licenses>
+
+	    </project>
+
+	  </supplement>
+  <supplement>
     <project>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-server</artifactId>
@@ -2096,7 +2123,31 @@ Copyright (c) 2007-2017 The JRuby project
       </licenses>
     </project>
   </supplement>
+  <supplement>
 
+    <project>
+
+      <groupId>io.grpc</groupId>
+
+      <artifactId>grpc-context</artifactId>
+
+      <licenses>
+
+        <license>
+
+          <name>Apache License, Version 2.0</name>
+
+          <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+
+          <distribution>repo</distribution>
+
+        </license>
+
+      </licenses>
+
+    </project>
+
+  </supplement>
   <supplement>
     <project>
       <groupId>com.google.code.gson</groupId>

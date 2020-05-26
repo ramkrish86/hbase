@@ -1057,7 +1057,7 @@
               </rules>
             </configuration>
           </execution>
-          <execution>
+	  <!--<execution>
             <id>banned-jsr305</id>
             <goals>
               <goal>enforce</goal>
@@ -1072,7 +1072,7 @@
                 </bannedDependencies>
               </rules>
             </configuration>
-          </execution>
+	  </execution>-->
           <execution>
             <id>banned-scala</id>
             <goals>
@@ -1543,7 +1543,7 @@
     <wagon.ssh.version>2.12</wagon.ssh.version>
     <xml.maven.version>1.0.1</xml.maven.version>
     <hbase-thirdparty.version>3.2.0</hbase-thirdparty.version>
-    <opentracing.version>0.31.0</opentracing.version>
+    <opentracing.version>0.33.0</opentracing.version>
      <opentracing-concurrent.version>0.2.1</opentracing-concurrent.version>
     <!-- Intraproject jar naming properties -->
     <!-- TODO this is pretty ugly, but works for the moment.
@@ -1968,10 +1968,10 @@
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
         <exclusions>
-          <exclusion>
+		<!--<exclusion>
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
-          </exclusion>
+	  </exclusion>-->
           <exclusion>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>

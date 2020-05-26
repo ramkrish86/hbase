@@ -36,6 +36,9 @@ import io.jaegertracing.Configuration.ReporterConfiguration;
 import io.jaegertracing.Configuration.SamplerConfiguration;
 import io.jaegertracing.Configuration.SenderConfiguration;
 import io.jaegertracing.internal.senders.SenderResolver;
+import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.opentracingshim.TraceShim;
+import io.opentelemetry.trace.TracerProvider;
 import io.opentracing.Scope;
 import io.opentracing.ScopeManager;
 import io.opentracing.Span;
@@ -74,6 +77,8 @@ public final class TraceUtil {
     if (tracer == null && conf != null) {
       tracer = new Tracer.Builder("Tracer").conf(conf).build();
     }*/
+    
+    
     conf = io.jaegertracing.Configuration.fromEnv(serviceName);
     if (!GlobalTracer.isRegistered()) {
       switch(c.get(HBASE_OPENTRACING_TRACER, HBASE_OPENTRACING_TRACER_DEFAULT)) {
@@ -81,7 +86,8 @@ public final class TraceUtil {
           if(serviceName.equalsIgnoreCase("RegionServer")) {
             conf.withSampler(Sampler.ALWAYS);
             conf.withReporter(ReporterConfiguration.fromEnv().withLogSpans(true));
-           tracer = conf.getTracerBuilder().build();
+           //tracer = conf.getTracerBuilder().build();
+            tracer =TraceShim.createTracerShim();
           } else {
           tracer = conf.getTracerBuilder().build();
           }
@@ -110,36 +116,21 @@ public final class TraceUtil {
     return tracer;
   }
   
-  static class NoopTracer implements Tracer {
-    
-
-    @Override
-    public ScopeManager scopeManager() {
-        return NoopScopeManager.INSTANCE;
-    }
-
-    @Override
-    public Span activeSpan() {
-        return null;
-    }
-
-    @Override
-    public SpanBuilder buildSpan(String operationName) { return NoopSpanBuilder.INSTANCE; }
-
-    @Override
-    public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {}
-
-    @Override
-    public <C> SpanContext extract(Format<C> format, C carrier) { return NoopSpanBuilder.INSTANCE; }
-
-    @Override
-    public String toString() { return NoopTracer.class.getSimpleName(); }
-    
-  }
-  
+  /*
+   * static class NoopTracer implements Tracer {
+   * @Override public ScopeManager scopeManager() { return NoopScopeManager.INSTANCE; }
+   * @Override public Span activeSpan() { return null; }
+   * @Override public SpanBuilder buildSpan(String operationName) { return NoopSpanBuilder.INSTANCE;
+   * }
+   * @Override public <C> void inject(SpanContext spanContext, Format<C> format, C carrier) {}
+   * @Override public <C> SpanContext extract(Format<C> format, C carrier) { return
+   * NoopSpanBuilder.INSTANCE; }
+   * @Override public String toString() { return NoopTracer.class.getSimpleName(); } }
+   */
+ 
   public static void convert() {
     LOG.info("Updating the tracer");
-    tracer = new NoopTracer();
+    //tracer = new NoopTracer();
   }
 
   
@@ -148,7 +139,11 @@ public final class TraceUtil {
    * @return Scope or null when not tracing
    */
   public static Scope createRootTrace(String description) {
-    return (getTracer() == null) ? null : getTracer().buildSpan(description).startActive(true);
+    Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).start();
+    if(span != null) {
+      return getTracer().scopeManager().activate(span);
+    }
+    return null;
   }
 
   /**
@@ -159,7 +154,11 @@ public final class TraceUtil {
     if (getTracer().activeSpan() == null) {
       //LOG.warn("no existing span. Please trace the code and find out where to initialize the span " +description);
     }
-    return (getTracer() == null) ? null : getTracer().buildSpan(description).startActive(true);
+    Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).start();
+    if(span != null) {
+      return getTracer().scopeManager().activate(span);
+    }
+    return null;
   }
 
   /**
@@ -172,16 +171,23 @@ public final class TraceUtil {
     if (span == null) {
       return createTrace(description);
     }
-    return (getTracer() == null) ? null
-        : getTracer().buildSpan(description).asChildOf(span).startActive(true);
-
+    span =  (getTracer() == null) ? null
+        : getTracer().buildSpan(description).asChildOf(span).start();
+    if(span != null) {
+      return getTracer().scopeManager().activate(span);
+    }
+    return null;
   }
 
   public static Scope createTrace(String description, SpanContext spanContext) {
     if(spanContext == null) return createTrace(description);
 
-    return (getTracer() == null) ? null : getTracer().buildSpan(description).
-        asChildOf(spanContext).startActive(true);
+    Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).
+        asChildOf(spanContext).start();
+    if(span != null) {
+      return getTracer().scopeManager().activate(span);
+    }
+    return null;
   }
 
   public static void main(String[] args) {
@@ -270,14 +276,13 @@ public final class TraceUtil {
 
     try {
       ObjectInputStream objStream = new ObjectInputStream(stream);
-      Map<String, String> carrier = (Map<String, String>) objStream.readObject();
+      TextMapExtractAdapter carrier = new TextMapExtractAdapter((Map<String, String>) objStream.readObject());
 
-      context =
-          tracer.extract(Format.Builtin.TEXT_MAP, new TextMapExtractAdapter(carrier));
+      context = tracer.extract(Format.Builtin.TEXT_MAP_EXTRACT, carrier);
+      carrier.iterator();
     } catch (Exception e) {
       LOG.warn("Could not deserialize context {}", e);
     }
-
     return context;
   }
 
@@ -288,7 +293,7 @@ public final class TraceUtil {
     }
 
     Map<String, String> carrier = new HashMap<String, String>();
-    tracer.inject(context, Format.Builtin.TEXT_MAP, new TextMapInjectAdapter(carrier));
+    tracer.inject(context, Format.Builtin.TEXT_MAP_INJECT, new TextMapInjectAdapter(carrier));
     if (carrier.isEmpty()) {
       LOG.warn("SpanContext was not properly injected by the Tracer.");
       return null;
