@@ -47,6 +47,7 @@ import org.apache.hadoop.hbase.util.ByteBufferUtils;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.IdLock;
 import org.apache.hadoop.hbase.util.ObjectIntPair;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.htrace.core.TraceScope;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -54,6 +55,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 
 import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
 
@@ -1284,7 +1286,9 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
 
     boolean useLock = false;
     IdLock.Entry lockEntry = null;
-    try (Scope traceScope = TraceUtil.createTrace("HFileReaderImpl.readBlock")) {
+    Scope traceScope = null;
+    try {
+    traceScope = TraceUtil.createTrace("HFileReaderImpl.readBlock");
       while (true) {
         // Check cache for block. If found return.
         if (cacheConf.shouldReadBlockFromCache(expectedBlockType)) {
@@ -1358,6 +1362,11 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
     } finally {
       if (lockEntry != null) {
         offsetLock.releaseLockEntry(lockEntry);
+      }
+      if (traceScope != null) {
+        traceScope.close();
+        //traceScope.getFirst().close();
+        //traceScope.getSecond().finish();
       }
     }
   }

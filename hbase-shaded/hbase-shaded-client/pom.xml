@@ -70,7 +70,7 @@
                                     <exclude>com.github.stephenc.findbugs:*</exclude>
                                     <exclude>org.apache.htrace:*</exclude>
 				    <exclude>io.opentracing:*</exclude>
-				    <exclude>io.opentelemetry:*</exclude>
+				    <!--<exclude>io.opentelemetry:*</exclude>-->
 				    <exclude>io.opentracing.contrib:*</exclude>
 				    <exclude>org.apache.hbase.thirdparty:hbase-shaded-jaeger</exclude>
 				    <exclude>org.apache.hadoop.thirdparty:hadoop-jaeger</exclude>

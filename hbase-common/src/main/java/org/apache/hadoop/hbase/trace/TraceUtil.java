@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hbase.thirdparty.com.google.common.annotations.VisibleForTesting;
 import org.apache.htrace.core.SpanReceiver;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -36,19 +37,17 @@ import io.jaegertracing.Configuration.ReporterConfiguration;
 import io.jaegertracing.Configuration.SamplerConfiguration;
 import io.jaegertracing.Configuration.SenderConfiguration;
 import io.jaegertracing.internal.senders.SenderResolver;
-import io.opentelemetry.OpenTelemetry;
+import io.opentelemetry.exporters.zipkin.ZipkinSpanExporter;
 import io.opentelemetry.opentracingshim.TraceShim;
+import io.opentelemetry.sdk.correlationcontext.CorrelationContextManagerSdk;
+import io.opentelemetry.sdk.trace.TracerSdkProvider;
+import io.opentelemetry.sdk.trace.export.SimpleSpanProcessor;
 import io.opentelemetry.trace.TracerProvider;
 import io.opentracing.Scope;
-import io.opentracing.ScopeManager;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
-import io.opentracing.contrib.tracerresolver.TracerConverter;
 import io.opentracing.mock.MockTracer;
-import io.opentracing.noop.NoopScopeManager;
-import io.opentracing.noop.NoopSpanBuilder;
-import io.opentracing.noop.NoopTracer;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 import io.opentracing.propagation.TextMapInjectAdapter;
@@ -62,6 +61,7 @@ public final class TraceUtil {
   private static io.jaegertracing.Configuration conf;
   public static final Logger LOG = LoggerFactory.getLogger(TraceUtil.class);
   private static Tracer tracer;
+  private static TracerSdkProvider tracerProvider;
   public static final String HBASE_OPENTRACING_TRACER = "hbase.opentracing.tracer";
   public static final String HBASE_OPENTRACING_TRACER_DEFAULT = "jaeger";
   public static final String HBASE_OPENTRACING_MOCKTRACER = "mock";
@@ -83,14 +83,17 @@ public final class TraceUtil {
     if (!GlobalTracer.isRegistered()) {
       switch(c.get(HBASE_OPENTRACING_TRACER, HBASE_OPENTRACING_TRACER_DEFAULT)) {
         case HBASE_OPENTRACING_TRACER_DEFAULT:
-          if(serviceName.equalsIgnoreCase("RegionServer")) {
-            conf.withSampler(Sampler.ALWAYS);
-            conf.withReporter(ReporterConfiguration.fromEnv().withLogSpans(true));
-           //tracer = conf.getTracerBuilder().build();
-            tracer =TraceShim.createTracerShim();
-          } else {
-          tracer = conf.getTracerBuilder().build();
-          }
+
+          tracerProvider = TracerSdkProvider.builder().build();
+          ZipkinSpanExporter exporter =
+              ZipkinSpanExporter.newBuilder().setEndpoint("http://localhost:9411/api/v2/spans")
+                  .setServiceName(serviceName).build();
+
+          // JaegerGrpcSpanExporter jaegerExporter = JaegerGrpcSpanExporter.newBuilder()
+          // .setServiceName(serviceName).setDeadlineMs(30000).build();
+          tracerProvider.addSpanProcessor(SimpleSpanProcessor.newBuilder(exporter).build());
+
+          tracer = TraceShim.createTracerShim(tracerProvider, new CorrelationContextManagerSdk());
           break;
         case HBASE_OPENTRACING_MOCKTRACER:
           tracer = new MockTracer();
@@ -98,10 +101,6 @@ public final class TraceUtil {
         default:
           throw new RuntimeException("Unexpected tracer");
       }
-      /*io.jaegertracing.spi.Sampler sampler = new ConstSampler(true);
-      conf = io.jaegertracing.Configuration.fromEnv(serviceName);
-      io.opentracing.Tracer tracer = conf.getTracerBuilder().withSampler(sampler).build();*/
-      //GlobalTracer.register(tracer);
       LOG.debug("The tracer is "+tracer + " "+serviceName);
     }
   }
@@ -191,8 +190,17 @@ public final class TraceUtil {
   }
 
   public static void main(String[] args) {
-    SenderResolver.resolve();
+    // SenderResolver.resolve();
+    TraceUtil.initTracer(new Configuration(), "test");
+    Scope scope = null;
+    try {
+      scope = createTrace("test");
+      addTimelineAnnotation("testmsg");
+    } finally {
+      //scope.().finish();
+    }
   }
+
   /**
    * Wrapper method to add new sampler to the default tracer
    * @return true if added, false if it was already added
@@ -316,4 +324,28 @@ public final class TraceUtil {
     return byteArray;
   }
 
+  static class JaegerTracerProvider implements TracerProvider {
+    private  io.jaegertracing.Configuration conf;
+    private JaegerTracerProvider() {
+      
+    }
+    private static JaegerTracerProvider INSTANCE = new JaegerTracerProvider();
+    @Override
+    public io.opentelemetry.trace.Tracer get(String instrumentationName) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+
+    @Override
+    public io.opentelemetry.trace.Tracer get(String instrumentationName,
+        String instrumentationVersion) {
+      // TODO Auto-generated method stub
+      return null;
+    }
+    
+    public void setConf(io.jaegertracing.Configuration conf) {
+      this.conf = conf;
+    }
+    
+  }
 }

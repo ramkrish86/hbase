@@ -1146,7 +1146,7 @@
                   <commentLineBufferSize>512</commentLineBufferSize>
                   <reason>Use shaded version in hbase-thirdparty</reason>
                   <bannedImports>
-                    <bannedImport>com.google.common.**</bannedImport>
+			  <!--<bannedImport>com.google.common.**</bannedImport>-->
                     <bannedImport>io.netty.**</bannedImport>
                     <bannedImport>org.apache.commons.cli.**</bannedImport>
                     <bannedImport>org.apache.commons.collections.**</bannedImport>
@@ -1455,7 +1455,7 @@
          They ought to match the values found in our default hadoop profile, which is
          currently "hadoop-2.0". See HBASE-15925 for more info. -->
     <hadoop.version>${hadoop-two.version}</hadoop.version>
-    <hadoop.guava.version>11.0.2</hadoop.guava.version>
+    <hadoop.guava.version>15.0</hadoop.guava.version>
     <compat.module>hbase-hadoop2-compat</compat.module>
     <assembly.file>src/main/assembly/hadoop-two-compat.xml</assembly.file>
     <!--This property is for hadoops netty. HBase netty
@@ -1544,7 +1544,7 @@
     <xml.maven.version>1.0.1</xml.maven.version>
     <hbase-thirdparty.version>3.2.0</hbase-thirdparty.version>
     <opentracing.version>0.33.0</opentracing.version>
-     <opentracing-concurrent.version>0.2.1</opentracing-concurrent.version>
+     <opentracing-concurrent.version>0.3.0</opentracing-concurrent.version>
     <!-- Intraproject jar naming properties -->
     <!-- TODO this is pretty ugly, but works for the moment.
       Modules are pretty heavy-weight things, so doing this work isn't too bad. -->
@@ -2341,7 +2341,7 @@
       <dependency>
         <groupId>io.opentracing.contrib</groupId>
         <artifactId>opentracing-concurrent</artifactId>
-        <version>0.2.1</version> <!-- to match io.opentracing version 0.31.0 -->
+        <version>0.3.0</version> <!-- to match io.opentracing version 0.31.0 -->
       </dependency>
     </dependencies>
   </dependencyManagement>

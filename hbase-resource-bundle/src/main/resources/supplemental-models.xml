@@ -1309,34 +1309,158 @@ Copyright (c) 2010-2011 Oracle and/or its affiliates.
       </licenses>
     </project>
   </supplement>
-  <supplement>
+	<supplement>
 
-	    <project>
+		<project>
 
-	      <groupId>io.grpc</groupId>
+			<groupId>io.grpc</groupId>
 
-	      <artifactId>grpc-context</artifactId>
+			<artifactId>grpc-context</artifactId>
 
-	      <version>1.28.0</version>
+			<version>1.28.0</version>
 
-	      <licenses>
+			<licenses>
 
-	        <license>
+				<license>
 
-	          <name>Apache License, Version 2.0</name>
+					<name>Apache License, Version 2.0</name>
 
-	          <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 
-	          <distribution>repo</distribution>
+					<distribution>repo</distribution>
 
-	        </license>
+				</license>
 
-	      </licenses>
+			</licenses>
 
-	    </project>
+		</project>
 
-	  </supplement>
-  <supplement>
+	</supplement>
+	<!-- <supplement>
+
+		<project>
+
+			<groupId>com.google.api.grpc</groupId>
+			<artifactId>proto-google-common-protos</artifactId>
+			<version>1.17.0</version>
+
+
+			<licenses>
+
+				<license>
+
+					<name>Apache License, Version 2.0</name>
+
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+
+					<distribution>repo</distribution>
+
+				</license>
+
+			</licenses>
+
+		</project>
+
+	</supplement>
+	<supplement>
+
+		<project>
+
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-api</artifactId>
+			<version>1.28.0</version>
+
+
+
+			<licenses>
+
+				<license>
+
+					<name>Apache License, Version 2.0</name>
+
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+
+					<distribution>repo</distribution>
+
+				</license>
+
+			</licenses>
+		</project>
+	</supplement>
+	<supplement>
+		<project>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-protobuf</artifactId>
+			<version>1.28.0</version>
+			<licenses>
+				<license>
+					<name>Apache License, Version 2.0</name>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+		</project>
+	</supplement>
+	<supplement>
+		<project>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-protobuf-lite</artifactId>
+			<version>1.28.0</version>
+			<licenses>
+				<license>
+					<name>Apache License, Version 2.0</name>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+		</project>
+	</supplement>
+
+	<supplement>
+		<project>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-protobuf-lite</artifactId>
+			<version>1.28.0</version>
+			<licenses>
+				<license>
+					<name>Apache License, Version 2.0</name>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+		</project>
+	</supplement>
+	<supplement>
+		<project>
+			<groupId>io.grpc</groupId>
+			<artifactId>grpc-stub</artifactId>
+			<version>1.28.0</version>
+			<licenses>
+				<license>
+					<name>Apache License, Version 2.0</name>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+		</project>
+	</supplement>
+	<supplement>
+		<project>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java-util</artifactId>
+			<version>3.11.4</version>
+			<licenses>
+				<license>
+					<name>Apache License, Version 2.0</name>
+					<url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+					<distribution>repo</distribution>
+				</license>
+			</licenses>
+		</project>
+	</supplement> -->
+
+
+	<supplement>
     <project>
       <groupId>com.sun.jersey</groupId>
       <artifactId>jersey-server</artifactId>
