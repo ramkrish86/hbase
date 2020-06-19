@@ -22,6 +22,7 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.hbase.HBaseClassTestRule;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.NamespaceDescriptor;
@@ -33,6 +34,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.testclassification.MediumTests;
 import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.Hello;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -103,25 +105,60 @@ public class TestHelloHBase {
   @Test
   public void testPutRowToTable() throws IOException {
     Admin admin = TEST_UTIL.getAdmin();
-    try (Scope scope = TraceUtil.createTrace("create namespace " + HelloHBase.MY_NAMESPACE_NAME)) {
+    Pair<Scope, Span> SSPair= null;
+    try{
+      SSPair=TraceUtil.createTrace("create namespace " + HelloHBase.MY_NAMESPACE_NAME);
       admin.createNamespace(
         NamespaceDescriptor.create(HelloHBase.MY_NAMESPACE_NAME).build());
     }
-
-    Table table;
-    try (Scope scope = TraceUtil.createTrace("create table " + HelloHBase.MY_TABLE_NAME)) {
-      table = TEST_UTIL.createTable(HelloHBase.MY_TABLE_NAME, HelloHBase.MY_COLUMN_FAMILY_NAME);
+    finally
+    {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
 
+    Table table;
+    try {
+      SSPair=TraceUtil.createTrace("create table " + HelloHBase.MY_TABLE_NAME);
+      table = TEST_UTIL.createTable(HelloHBase.MY_TABLE_NAME, HelloHBase.MY_COLUMN_FAMILY_NAME);
+    }
+    finally
+    {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
+    }
     HelloHBase.putRowToTable(table);
     Result row = table.get(new Get(HelloHBase.MY_ROW_ID));
     assertEquals("#putRowToTable failed to store row.", false, row.isEmpty());
-
-    try (Scope scope = TraceUtil.createTrace("delete table " + HelloHBase.MY_TABLE_NAME)) {
+    try {
+      SSPair=TraceUtil.createTrace("delete table " + HelloHBase.MY_TABLE_NAME);
       TEST_UTIL.deleteTable(HelloHBase.MY_TABLE_NAME);
     }
-    try (Scope scope = TraceUtil.createTrace("delete namespace " + HelloHBase.MY_NAMESPACE_NAME)) {
+    finally
+    {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
+    }
+    try{
+      SSPair= TraceUtil.createTrace("delete namespace " + HelloHBase.MY_NAMESPACE_NAME);
       admin.deleteNamespace(HelloHBase.MY_NAMESPACE_NAME);
+    }
+    finally
+    {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 

@@ -27,6 +27,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -45,6 +47,7 @@ import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.client.TableDescriptor;
 import org.apache.hadoop.hbase.fs.HFileSystem;
 import org.apache.hadoop.hbase.io.Reference;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSHDFSUtils;
 import org.apache.hadoop.hbase.util.FSUtils;
@@ -233,14 +236,18 @@ public class HRegionFileSystem {
    */
   public Collection<StoreFileInfo> getStoreFiles(final String familyName, final boolean validate)
       throws IOException {
-    Path familyDir = getStoreDir(familyName);
-    FileStatus[] files = FSUtils.listStatus(this.fs, familyDir);
-    if (files == null) {
-      if (LOG.isTraceEnabled()) {
-        LOG.trace("No StoreFiles for: " + familyDir);
+//    Pair<Scope, Span> SSPair=null;
+//    try{
+//      SSPair = TraceUtil.createTrace("HregionFilesystem:GetStoreFiles");
+      Path familyDir = getStoreDir(familyName);
+//      TraceUtil.addKVAnnotation("azure check", "Getting Store Files for " + familyName);
+      FileStatus[] files = FSUtils.listStatus(this.fs, familyDir);
+      if (files == null) {
+        if (LOG.isTraceEnabled()) {
+          LOG.trace("No StoreFiles for: " + familyDir);
+        }
+        return null;
       }
-      return null;
-    }
 
     ArrayList<StoreFileInfo> storeFiles = new ArrayList<>(files.length);
     for (FileStatus status: files) {

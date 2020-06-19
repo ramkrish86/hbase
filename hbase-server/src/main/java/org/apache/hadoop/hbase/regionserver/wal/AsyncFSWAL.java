@@ -46,6 +46,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -53,6 +54,7 @@ import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.client.RegionInfo;
 import org.apache.hadoop.hbase.io.asyncfs.AsyncFSOutput;
 import org.apache.hadoop.hbase.trace.TraceUtil;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.wal.AsyncFSWALProvider;
 import org.apache.hadoop.hbase.wal.WALEdit;
 import org.apache.hadoop.hbase.wal.WALKeyImpl;
@@ -659,7 +661,9 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
 
   @Override
   public void sync(boolean forceSync) throws IOException {
-    try (Scope scope = TraceUtil.createTrace("AsyncFSWAL.sync")) {
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("AsyncFSWAL.sync");
       long txid = waitingConsumePayloads.next();
       SyncFuture future;
       try {
@@ -673,6 +677,12 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
         consumeExecutor.execute(consumer);
       }
       blockOnSync(future);
+    } finally {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 
@@ -681,8 +691,10 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
     if (highestSyncedTxid.get() >= txid) {
       return;
     }
-    try (Scope scope = TraceUtil.createTrace("AsyncFSWAL.sync")) {
+    Pair<Scope, Span> SSPair = null;
+    try {
       // here we do not use ring buffer sequence as txid
+      SSPair = TraceUtil.createTrace("AsyncFSWAL.sync");
       long sequence = waitingConsumePayloads.next();
       SyncFuture future;
       try {
@@ -696,6 +708,11 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
         consumeExecutor.execute(consumer);
       }
       blockOnSync(future);
+    } finally {
+      if (SSPair != null) {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 

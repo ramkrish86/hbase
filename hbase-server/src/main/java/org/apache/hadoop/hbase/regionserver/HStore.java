@@ -52,6 +52,8 @@ import java.util.function.Predicate;
 import java.util.function.ToLongFunction;
 import java.util.stream.Collectors;
 import java.util.stream.LongStream;
+import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -94,6 +96,7 @@ import org.apache.hadoop.hbase.regionserver.throttle.ThroughputController;
 import org.apache.hadoop.hbase.regionserver.wal.WALUtil;
 import org.apache.hadoop.hbase.security.EncryptionUtil;
 import org.apache.hadoop.hbase.security.User;
+import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.ChecksumType;
 import org.apache.hadoop.hbase.util.ClassSize;
@@ -102,6 +105,7 @@ import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.ReflectionUtils;
 import org.apache.hadoop.util.StringUtils;
 import org.apache.hadoop.util.StringUtils.TraditionalBinaryPrefix;
+import org.apache.hadoop.util.Time;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -1312,10 +1316,10 @@ public class HStore implements Store, HeapSize, StoreConfigInformation,
     } finally {
       this.lock.readLock().unlock();
     }
-
+    Pair<Scope, Span> SSPair=null;
     try {
       // First the store file scanners
-
+      SSPair= TraceUtil.createTrace("Getting scanners from HstoreFiles");
       // TODO this used to get the store files in descending order,
       // but now we get them in ascending order, which I think is
       // actually more correct, since memstore get put at the end.
@@ -1326,10 +1330,20 @@ public class HStore implements Store, HeapSize, StoreConfigInformation,
       scanners.addAll(sfScanners);
       // Then the memstore scanners
       scanners.addAll(memStoreScanners);
+      TraceUtil.addKVAnnotation(Time.formatTime(Time.monotonicNow()),"Total storefiles: "+storeFilesToScan.size()+
+        " Total scanners from these storeFiles: "+sfScanners.size()+
+        " Total MemStoreScanners: "+memStoreScanners.size()+
+        " Total scanners: "+scanners.size());
       return scanners;
     } catch (Throwable t) {
       clearAndClose(memStoreScanners);
       throw t instanceof IOException ? (IOException) t : new IOException(t);
+    }finally{
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 

@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.DroppedSnapshotException;
 import org.apache.hadoop.hbase.HConstants;
@@ -48,10 +49,12 @@ import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.EnvironmentEdgeManager;
 import org.apache.hadoop.hbase.util.HasThread;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.ServerRegionReplicaUtil;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.ipc.RemoteException;
 import org.apache.hadoop.util.StringUtils.TraditionalBinaryPrefix;
+import org.apache.hadoop.util.Time;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -698,10 +701,12 @@ class MemStoreFlusher implements FlushRequester {
    * amount of memstore consumption.
    */
   public void reclaimMemStoreMemory() {
-    try (Scope scope = TraceUtil.createTrace("MemStoreFluser.reclaimMemStoreMemory")) {
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("MemStoreFluser.reclaimMemStoreMemory");
       FlushType flushType = isAboveHighWaterMark();
       if (flushType != FlushType.NORMAL) {
-        TraceUtil.addTimelineAnnotation("Force Flush. We're above high water mark.");
+        TraceUtil.addKVAnnotation(Time.formatTime(Time.monotonicNow()),"Force Flush. We're above high water mark.");
         long start = EnvironmentEdgeManager.currentTime();
         long nextLogTimeMs = start;
         synchronized (this.blockSignal) {
@@ -716,19 +721,19 @@ class MemStoreFlusher implements FlushRequester {
                 startTime = EnvironmentEdgeManager.currentTime();
                 if (!server.getRegionServerAccounting().isOffheap()) {
                   logMsg("global memstore heapsize",
-                      server.getRegionServerAccounting().getGlobalMemStoreHeapSize(),
-                      server.getRegionServerAccounting().getGlobalMemStoreLimit());
+                    server.getRegionServerAccounting().getGlobalMemStoreHeapSize(),
+                    server.getRegionServerAccounting().getGlobalMemStoreLimit());
                 } else {
                   switch (flushType) {
                     case ABOVE_OFFHEAP_HIGHER_MARK:
                       logMsg("the global offheap memstore datasize",
-                          server.getRegionServerAccounting().getGlobalMemStoreOffHeapSize(),
-                          server.getRegionServerAccounting().getGlobalMemStoreLimit());
+                        server.getRegionServerAccounting().getGlobalMemStoreOffHeapSize(),
+                        server.getRegionServerAccounting().getGlobalMemStoreLimit());
                       break;
                     case ABOVE_ONHEAP_HIGHER_MARK:
                       logMsg("global memstore heapsize",
-                          server.getRegionServerAccounting().getGlobalMemStoreHeapSize(),
-                          server.getRegionServerAccounting().getGlobalOnHeapMemStoreLimit());
+                        server.getRegionServerAccounting().getGlobalMemStoreHeapSize(),
+                        server.getRegionServerAccounting().getGlobalOnHeapMemStoreLimit());
                       break;
                     default:
                       break;
@@ -758,9 +763,9 @@ class MemStoreFlusher implements FlushRequester {
             }
           }
 
-          if(blocked){
+          if (blocked) {
             final long totalTime = EnvironmentEdgeManager.currentTime() - startTime;
-            if(totalTime > 0){
+            if (totalTime > 0) {
               this.updatesBlockedMsHighWater.add(totalTime);
             }
             LOG.info("Unblocking updates for server " + server.toString());
@@ -772,6 +777,11 @@ class MemStoreFlusher implements FlushRequester {
           server.getMemStoreFlusher().setFlushType(flushType);
           wakeupFlushThread();
         }
+      }
+    } finally {
+      if (SSPair != null) {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
       }
     }
   }

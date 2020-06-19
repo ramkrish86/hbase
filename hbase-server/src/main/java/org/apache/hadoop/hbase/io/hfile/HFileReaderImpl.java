@@ -49,6 +49,7 @@ import org.apache.hadoop.hbase.util.IdLock;
 import org.apache.hadoop.hbase.util.ObjectIntPair;
 import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.io.WritableUtils;
+import org.apache.hadoop.util.Time;
 import org.apache.htrace.core.TraceScope;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
@@ -1190,6 +1191,7 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
   @Override
   public HFileBlock getMetaBlock(String metaBlockName, boolean cacheBlock)
       throws IOException {
+
     if (trailer.getMetaIndexCount() == 0) {
       return null; // there are no meta blocks
     }
@@ -1210,34 +1212,47 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
     // single-level.
     synchronized (metaBlockIndexReader.getRootBlockKey(block)) {
       // Check cache for block. If found return.
-      long metaBlockOffset = metaBlockIndexReader.getRootBlockOffset(block);
-      BlockCacheKey cacheKey =
+      Pair<Scope, Span> SSPair = null;
+      try {
+        SSPair = TraceUtil.createTrace("HfilereaderIMPL:GetMetaBlock");
+        long metaBlockOffset = metaBlockIndexReader.getRootBlockOffset(block);
+        BlockCacheKey cacheKey =
           new BlockCacheKey(name, metaBlockOffset, this.isPrimaryReplicaReader(), BlockType.META);
 
-      cacheBlock &= cacheConf.shouldCacheBlockOnRead(BlockType.META.getCategory());
-      HFileBlock cachedBlock =
+        cacheBlock &= cacheConf.shouldCacheBlockOnRead(BlockType.META.getCategory());
+        HFileBlock cachedBlock =
           getCachedBlock(cacheKey, cacheBlock, false, true, true, BlockType.META, null);
-      if (cachedBlock != null) {
-        assert cachedBlock.isUnpacked() : "Packed block leak.";
-        // Return a distinct 'shallow copy' of the block,
-        // so pos does not get messed by the scanner
-        return cachedBlock;
-      }
-      // Cache Miss, please load.
+        if (cachedBlock != null) {
+          assert cachedBlock.isUnpacked() : "Packed block leak.";
+          // Return a distinct 'shallow copy' of the block,
+          // so pos does not get messed by the scanner
+          TraceUtil.addKVAnnotation("azure check","Cache hit: Metablock");
+          return cachedBlock;
+        }
+        // Cache Miss, please load.
+        TraceUtil.addKVAnnotation("azure check","Cache miss: Metablock");
 
-      HFileBlock compressedBlock =
+        HFileBlock compressedBlock =
           fsBlockReader.readBlockData(metaBlockOffset, blockSize, true, false, true);
-      HFileBlock uncompressedBlock = compressedBlock.unpack(hfileContext, fsBlockReader);
-      if (compressedBlock != uncompressedBlock) {
-        compressedBlock.release();
-      }
+        HFileBlock uncompressedBlock = compressedBlock.unpack(hfileContext, fsBlockReader);
+        if (compressedBlock != uncompressedBlock) {
+          compressedBlock.release();
+        }
 
-      // Cache the block
-      if (cacheBlock) {
-        cacheConf.getBlockCache().ifPresent(
-          cache -> cache.cacheBlock(cacheKey, uncompressedBlock, cacheConf.isInMemory()));
+        // Cache the block
+        if (cacheBlock) {
+          cacheConf.getBlockCache().ifPresent(
+            cache -> cache.cacheBlock(cacheKey, uncompressedBlock, cacheConf.isInMemory()));
+          TraceUtil.addKVAnnotation("azure check","Cache miss(Metablock) => cached the block now");
+        }
+        return uncompressedBlock;
+      } finally {
+        if(SSPair!=null)
+        {
+          SSPair.getFirst().close();
+          SSPair.getSecond().finish();
+        }
       }
-      return uncompressedBlock;
     }
   }
 
@@ -1287,8 +1302,17 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
     boolean useLock = false;
     IdLock.Entry lockEntry = null;
     Scope traceScope = null;
+    Pair<Scope,Span> SSPair=null;
+
+    try{
+      throw new IOException("throwing from ReadBlock");
+    }catch(Exception e){e.printStackTrace();}
+
+
     try {
-    traceScope = TraceUtil.createTrace("HFileReaderImpl.readBlock");
+      SSPair = TraceUtil.createTrace("HFileReaderImpl.readBlock");
+      TraceUtil.addKVAnnotation("BlockType", String.valueOf(expectedBlockType.getCategory()));
+      traceScope=SSPair.getFirst();
       while (true) {
         // Check cache for block. If found return.
         if (cacheConf.shouldReadBlockFromCache(expectedBlockType)) {
@@ -1303,7 +1327,7 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
             if (LOG.isTraceEnabled()) {
               LOG.trace("From Cache " + cachedBlock);
             }
-            TraceUtil.addTimelineAnnotation("blockCacheHit");
+            TraceUtil.addKVAnnotation(Time.formatTime(Time.monotonicNow()),"BlockCacheHit");
             assert cachedBlock.isUnpacked() : "Packed block leak.";
             if (cachedBlock.getBlockType().isData()) {
               if (updateCacheMetrics) {
@@ -1333,10 +1357,11 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
           // Carry on, please load.
         }
 
-        TraceUtil.addTimelineAnnotation("blockCacheMiss");
+        TraceUtil.addKVAnnotation(Time.formatTime(Time.monotonicNow()),"BlockCacheMiss");
         // Load block from filesystem.
         HFileBlock hfileBlock = fsBlockReader.readBlockData(dataBlockOffset, onDiskBlockSize, pread,
-          !isCompaction, shouldUseHeap(expectedBlockType));
+          !isCompaction, shouldUseHeap(expectedBlockType),SSPair.getSecond());
+        //add path
         validateBlockType(hfileBlock, expectedBlockType);
         HFileBlock unpacked = hfileBlock.unpack(hfileContext, fsBlockReader);
         BlockType.BlockCategory category = hfileBlock.getBlockType().getCategory();
@@ -1363,10 +1388,10 @@ public abstract class HFileReaderImpl implements HFile.Reader, Configurable {
       if (lockEntry != null) {
         offsetLock.releaseLockEntry(lockEntry);
       }
-      if (traceScope != null) {
-        traceScope.close();
-        //traceScope.getFirst().close();
-        //traceScope.getSecond().finish();
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
       }
     }
   }

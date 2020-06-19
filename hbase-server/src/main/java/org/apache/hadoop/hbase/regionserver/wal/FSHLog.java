@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,6 +52,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.ClassSize;
 import org.apache.hadoop.hbase.util.FSUtils;
 import org.apache.hadoop.hbase.util.HasThread;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.hbase.util.Threads;
 import org.apache.hadoop.hbase.wal.FSHLogProvider;
 import org.apache.hadoop.hbase.wal.WALEdit;
@@ -756,8 +758,16 @@ public class FSHLog extends AbstractFSWAL<Writer> {
 
   @Override
   public void sync(boolean forceSync) throws IOException {
-    try (Scope scope = TraceUtil.createTrace("FSHLog.sync")) {
-      publishSyncThenBlockOnCompletion(scope, forceSync);
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("FSHLog.sync");
+      publishSyncThenBlockOnCompletion(SSPair.getFirst(), forceSync);
+    } finally {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 
@@ -772,8 +782,16 @@ public class FSHLog extends AbstractFSWAL<Writer> {
       // Already sync'd.
       return;
     }
-    try (Scope scope = TraceUtil.createTrace("FSHLog.sync")) {
-      publishSyncThenBlockOnCompletion(scope, forceSync);
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("FSHLog.sync");
+      publishSyncThenBlockOnCompletion(SSPair.getFirst(), forceSync);
+    } finally {
+      if(SSPair!=null)
+      {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 

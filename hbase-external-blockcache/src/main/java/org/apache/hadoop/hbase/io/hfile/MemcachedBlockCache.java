@@ -29,6 +29,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import net.spy.memcached.CachedData;
 import net.spy.memcached.ConnectionFactoryBuilder;
 import net.spy.memcached.FailureMode;
@@ -42,6 +43,7 @@ import org.apache.hadoop.hbase.nio.ByteBuff;
 import org.apache.hadoop.hbase.nio.SingleByteBuff;
 import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Addressing;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,16 +132,16 @@ public class MemcachedBlockCache implements BlockCache {
                             boolean repeat, boolean updateCacheMetrics) {
     // Assume that nothing is the block cache
     HFileBlock result = null;
-
-    try (Scope traceScope = TraceUtil.createTrace("MemcachedBlockCache.getBlock")) {
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("MemcachedBlockCache.getBlock");
       result = client.get(cacheKey.toString(), tc);
     } catch (Exception e) {
       // Catch a pretty broad set of exceptions to limit any changes in the memecache client
       // and how it handles failures from leaking into the read path.
       if (LOG.isDebugEnabled()) {
-        LOG.debug("Exception pulling from memcached [ "
-            + cacheKey.toString()
-            + " ]. Treating as a miss.", e);
+        LOG.debug("Exception pulling from memcached [ " + cacheKey.toString() + " ]. Treating as a miss.",
+          e);
       }
       result = null;
     } finally {
@@ -150,6 +152,10 @@ public class MemcachedBlockCache implements BlockCache {
         } else {
           cacheStats.hit(caching, cacheKey.isPrimary(), cacheKey.getBlockType());
         }
+      }
+      if (SSPair != null) {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
       }
     }
 

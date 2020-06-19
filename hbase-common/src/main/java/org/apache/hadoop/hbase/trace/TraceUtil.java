@@ -77,31 +77,32 @@ public final class TraceUtil {
     if (tracer == null && conf != null) {
       tracer = new Tracer.Builder("Tracer").conf(conf).build();
     }*/
-    
-    
-    conf = io.jaegertracing.Configuration.fromEnv(serviceName);
-    if (!GlobalTracer.isRegistered()) {
-      switch(c.get(HBASE_OPENTRACING_TRACER, HBASE_OPENTRACING_TRACER_DEFAULT)) {
-        case HBASE_OPENTRACING_TRACER_DEFAULT:
 
-          tracerProvider = TracerSdkProvider.builder().build();
-          ZipkinSpanExporter exporter =
-              ZipkinSpanExporter.newBuilder().setEndpoint("http://localhost:9411/api/v2/spans")
-                  .setServiceName(serviceName).build();
+    if(serviceName=="RegionServer") {
+      conf = io.jaegertracing.Configuration.fromEnv(serviceName);
+      if (!GlobalTracer.isRegistered()) {
+        switch (c.get(HBASE_OPENTRACING_TRACER, HBASE_OPENTRACING_TRACER_DEFAULT)) {
+          case HBASE_OPENTRACING_TRACER_DEFAULT:
 
-          // JaegerGrpcSpanExporter jaegerExporter = JaegerGrpcSpanExporter.newBuilder()
-          // .setServiceName(serviceName).setDeadlineMs(30000).build();
-          tracerProvider.addSpanProcessor(SimpleSpanProcessor.newBuilder(exporter).build());
+            tracerProvider = TracerSdkProvider.builder().build();
+            ZipkinSpanExporter exporter =
+              ZipkinSpanExporter.newBuilder().setEndpoint("http://localhost:9411/api/v2/spans").setServiceName(serviceName).build();
 
-          tracer = TraceShim.createTracerShim(tracerProvider, new CorrelationContextManagerSdk());
-          break;
-        case HBASE_OPENTRACING_MOCKTRACER:
-          tracer = new MockTracer();
-          break;
-        default:
-          throw new RuntimeException("Unexpected tracer");
+            // JaegerGrpcSpanExporter jaegerExporter = JaegerGrpcSpanExporter.newBuilder()
+            // .setServiceName(serviceName).setDeadlineMs(30000).build();
+            tracerProvider.addSpanProcessor(SimpleSpanProcessor.newBuilder(exporter).build());
+
+            tracer = TraceShim.createTracerShim(tracerProvider, new CorrelationContextManagerSdk());
+
+            break;
+          case HBASE_OPENTRACING_MOCKTRACER:
+            tracer = new MockTracer();
+            break;
+          default:
+            throw new RuntimeException("Unexpected tracer");
+        }
+        LOG.debug("The tracer is " + tracer + " " + serviceName);
       }
-      LOG.debug("The tracer is "+tracer + " "+serviceName);
     }
   }
 
@@ -149,13 +150,15 @@ public final class TraceUtil {
    * Wrapper method to create new Scope with the given description
    * @return Scope or null when not tracing
    */
-  public static Scope createTrace(String description) {
+  
+  public static Pair<Scope,Span> createTrace(String description) {
     if (getTracer().activeSpan() == null) {
       //LOG.warn("no existing span. Please trace the code and find out where to initialize the span " +description);
     }
     Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).start();
+    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
     if(span != null) {
-      return getTracer().scopeManager().activate(span);
+      return SSPair;
     }
     return null;
   }
@@ -168,22 +171,27 @@ public final class TraceUtil {
    */
   public static Scope createTrace(String description, Span span) {
     if (span == null) {
-      return createTrace(description);
+      return createTrace(description).getFirst();
     }
     span =  (getTracer() == null) ? null
         : getTracer().buildSpan(description).asChildOf(span).start();
+//    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
+
     if(span != null) {
+//      return SSPair;
       return getTracer().scopeManager().activate(span);
     }
     return null;
   }
 
   public static Scope createTrace(String description, SpanContext spanContext) {
-    if(spanContext == null) return createTrace(description);
+    if(spanContext == null) return createTrace(description).getFirst();
 
     Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).
         asChildOf(spanContext).start();
+//    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
     if(span != null) {
+//      return SSPair;
       return getTracer().scopeManager().activate(span);
     }
     return null;
@@ -192,11 +200,13 @@ public final class TraceUtil {
   public static void main(String[] args) {
     // SenderResolver.resolve();
     TraceUtil.initTracer(new Configuration(), "test");
-    Scope scope = null;
+    Pair<Scope,Span> SSPair=null;
     try {
-      scope = createTrace("test");
+      SSPair = createTrace("test");
       addTimelineAnnotation("testmsg");
     } finally {
+      SSPair.getFirst().close();
+      SSPair.getSecond().finish();
       //scope.().finish();
     }
   }

@@ -39,6 +39,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell.Type;
 import org.apache.hadoop.hbase.client.Connection;
@@ -773,8 +774,9 @@ public class MetaTableAccessor {
     }
 
     int currentRow = 0;
-    try (Scope scope = TraceUtil.createTrace("Scanning META ");
-      Table metaTable = getMetaHTable(connection)) {
+//    Pair<Scope, Span> SSPair= null;
+    try (Table metaTable = getMetaHTable(connection)) {
+//      SSPair = TraceUtil.createTrace("Scanning META ");
       try (ResultScanner scanner = metaTable.getScanner(scan)) {
         Result data;
         while ((data = scanner.next()) != null) {
@@ -784,6 +786,13 @@ public class MetaTableAccessor {
           if (++currentRow >= rowUpperLimit) break;
         }
       }
+    }
+    finally{
+//      if(SSPair!=null)
+//      {
+//        SSPair.getFirst().close();
+//        SSPair.getSecond().finish();
+//      }
     }
     if (visitor instanceof Closeable) {
       try {

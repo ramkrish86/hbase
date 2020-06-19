@@ -19,6 +19,7 @@
 package org.apache.hadoop.hbase.trace;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.IntegrationTestingUtility;
@@ -34,6 +35,7 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.AbstractHBaseTool;
 import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.hadoop.util.ToolRunner;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -121,7 +123,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
           public void run() {
             ResultScanner rs = null;
             TraceUtil.addSampler(Sampler.ALWAYS);
-            try (Scope scope = TraceUtil.createTrace("Scan")){
+            Pair<Scope, Span> SSPair = null;
+            try {
+              SSPair = TraceUtil.createTrace("Scan");
               Table ht = util.getConnection().getTable(tableName);
               Scan s = new Scan();
               s.setStartRow(Bytes.toBytes(rowKeyQueue.take()));
@@ -130,7 +134,7 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
               // Something to keep the jvm from removing the loop.
               long accum = 0;
 
-              for(int x = 0; x < 1000; x++) {
+              for (int x = 0; x < 1000; x++) {
                 Result r = rs.next();
                 accum |= Bytes.toLong(r.getRow());
               }
@@ -144,7 +148,13 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
               TraceUtil.addKVAnnotation("exception", e.getClass().getSimpleName());
             } catch (Exception e) {
             } finally {
-              if (rs != null) rs.close();
+              if (rs != null) {
+                rs.close();
+              }
+              if (SSPair != null) {
+                SSPair.getFirst().close();
+                SSPair.getSecond().finish();
+              }
             }
 
           }
@@ -174,8 +184,10 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
           long accum = 0;
           TraceUtil.addSampler(Sampler.ALWAYS);
           for (int x = 0; x < 5; x++) {
-            try (Scope scope = TraceUtil.createTrace("gets")) {
-              long rk = rowKeyQueue.take();
+            Pair<Scope, Span> SSPair = null;
+            try {
+              SSPair = TraceUtil.createTrace("gets");
+             long rk=rowKeyQueue.take();
               Result r1 = ht.get(new Get(Bytes.toBytes(rk)));
               if (r1 != null) {
                 accum |= Bytes.toLong(r1.getRow());
@@ -186,8 +198,13 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
               }
               TraceUtil.addTimelineAnnotation("Accum = " + accum);
 
-            } catch (IOException|InterruptedException ie) {
+            } catch (IOException | InterruptedException ie) {
               // IGNORED
+            } finally {
+              if (SSPair != null) {
+                SSPair.getFirst().close();
+                SSPair.getSecond().finish();
+              }
             }
           }
 
@@ -199,16 +216,31 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
 
   private void createTable() throws IOException {
     TraceUtil.addSampler(Sampler.ALWAYS);
-    try (Scope scope = TraceUtil.createTrace("createTable")) {
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("createTable");
       util.createTable(tableName, familyName);
+    } finally {
+      if (SSPair != null) {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
+      }
     }
   }
 
   private void deleteTable() throws IOException {
     TraceUtil.addSampler(Sampler.ALWAYS);
-    try (Scope scope = TraceUtil.createTrace("deleteTable")) {
+
+    Pair<Scope, Span> SSPair = null;
+    try {
+      SSPair = TraceUtil.createTrace("deleteTable");
       if (admin.tableExists(tableName)) {
         util.deleteTable(tableName);
+      }
+    } finally {
+      if (SSPair != null) {
+        SSPair.getFirst().close();
+        SSPair.getSecond().finish();
       }
     }
   }
@@ -219,7 +251,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
     byte[] value = new byte[300];
     TraceUtil.addSampler(Sampler.ALWAYS);
     for (int x = 0; x < 5000; x++) {
-      try (Scope traceScope = TraceUtil.createTrace("insertData")) {
+      Pair<Scope, Span> SSPair = null;
+      try {
+        SSPair = TraceUtil.createTrace("insertData");
         for (int i = 0; i < 5; i++) {
           long rk = random.nextLong();
           rowKeys.add(rk);
@@ -232,6 +266,11 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
         }
         if ((x % 1000) == 0) {
           admin.flush(tableName);
+        }
+      } finally {
+        if (SSPair != null) {
+          SSPair.getFirst().close();
+          SSPair.getSecond().finish();
         }
       }
     }

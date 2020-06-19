@@ -48,6 +48,7 @@ import io.jaegertracing.Configuration.SamplerConfiguration;
 import io.jaegertracing.internal.samplers.ConstSampler;
 import io.jaegertracing.internal.senders.SenderResolver;
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -1349,13 +1350,22 @@ public class PerformanceEvaluation extends Configured implements Tool {
       for (int ii = 0; ii < opts.cycles; ii++) {
         if (opts.cycles > 1) LOG.info("Cycle=" + ii + " of " + opts.cycles);
         for (int i = startRow; i < lastRow; i++) {
-          if (i % everyN != 0) continue;
+          if (i % everyN != 0) {
+            continue;
+          }
           long startTime = System.nanoTime();
           boolean requestSent = false;
-          try (Scope scope = TraceUtil.createTrace("test row");){
+          Pair<Scope, Span> SSPair = null;
+          try {
+            SSPair = TraceUtil.createTrace("test row");
             requestSent = testRow(i);
+          } finally {
+            if (SSPair != null) {
+              SSPair.getFirst().close();
+              SSPair.getSecond().finish();
+            }
           }
-          if ( (i - startRow) > opts.measureAfter) {
+          if ((i - startRow) > opts.measureAfter) {
             // If multiget or multiput is enabled, say set to 10, testRow() returns immediately
             // first 9 times and sends the actual get request in the 10th iteration.
             // We should only set latency when actual request is sent because otherwise

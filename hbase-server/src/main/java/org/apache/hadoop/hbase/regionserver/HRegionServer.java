@@ -58,6 +58,7 @@ import javax.management.MalformedObjectNameException;
 import javax.servlet.http.HttpServlet;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -72,6 +73,8 @@ import org.apache.hadoop.hbase.ClockOutOfSyncException;
 import org.apache.hadoop.hbase.CoordinatedStateManager;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.ExecutorStatusChore;
+
+
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HBaseInterfaceAudience;
 import org.apache.hadoop.hbase.HConstants;
@@ -1753,42 +1756,47 @@ public class HRegionServer extends HasThread implements
 
     @Override
     protected void chore() {
-      for (Region r : this.instance.onlineRegions.values()) {
-        if (r == null) {
-          continue;
-        }
-        HRegion hr = (HRegion) r;
-        for (HStore s : hr.stores.values()) {
-          try {
-            long multiplier = s.getCompactionCheckMultiplier();
-            assert multiplier > 0;
-            if (iteration % multiplier != 0) {
-              continue;
-            }
-            if (s.needsCompaction()) {
-              // Queue a compaction. Will recognize if major is needed.
-              this.instance.compactSplitThread.requestSystemCompaction(hr, s,
-                getName() + " requests compaction");
-            } else if (s.shouldPerformMajorCompaction()) {
-              s.triggerMajorCompaction();
-              if (majorCompactPriority == DEFAULT_PRIORITY ||
-                  majorCompactPriority > hr.getCompactPriority()) {
-                this.instance.compactSplitThread.requestCompaction(hr, s,
-                    getName() + " requests major compaction; use default priority",
-                    Store.NO_PRIORITY,
-                CompactionLifeCycleTracker.DUMMY, null);
-              } else {
-                this.instance.compactSplitThread.requestCompaction(hr, s,
-                    getName() + " requests major compaction; use configured priority",
-                    this.majorCompactPriority, CompactionLifeCycleTracker.DUMMY, null);
+//      Pair<Scope, Span> SSPair=null;
+//      try {
+//        SSPair = TraceUtil.createTrace("HRegionServer:Scheduled_Chore:Compaction_checker");
+        for (Region r : this.instance.onlineRegions.values()) {
+          if (r == null) {
+            continue;
+          }
+          HRegion hr = (HRegion) r;
+          for (HStore s : hr.stores.values()) {
+            try {
+              long multiplier = s.getCompactionCheckMultiplier();
+              assert multiplier > 0;
+              if (iteration % multiplier != 0) {
+                continue;
               }
+              if (s.needsCompaction()) {
+                // Queue a compaction. Will recognize if major is needed.
+                this.instance.compactSplitThread.requestSystemCompaction(hr, s, getName() + " requests compaction");
+              } else if (s.shouldPerformMajorCompaction()) {
+                s.triggerMajorCompaction();
+                if (majorCompactPriority == DEFAULT_PRIORITY || majorCompactPriority > hr.getCompactPriority()) {
+                  this.instance.compactSplitThread.requestCompaction(hr, s, getName() + " requests major compaction; use default priority",
+                    Store.NO_PRIORITY, CompactionLifeCycleTracker.DUMMY, null);
+                } else {
+                  this.instance.compactSplitThread.requestCompaction(hr, s, getName() + " requests major compaction; use configured priority",
+                    this.majorCompactPriority, CompactionLifeCycleTracker.DUMMY, null);
+                }
+              }
+            } catch (IOException e) {
+              LOG.warn("Failed major compaction check on " + r, e);
             }
-          } catch (IOException e) {
-            LOG.warn("Failed major compaction check on " + r, e);
           }
         }
-      }
-      iteration = (iteration == Long.MAX_VALUE) ? 0 : (iteration + 1);
+        iteration = (iteration == Long.MAX_VALUE) ? 0 : (iteration + 1);
+//      }finally{
+//        if(SSPair!=null)
+//        {
+//          SSPair.getFirst().close();
+//          SSPair.getSecond().finish();
+//        }
+//      }
     }
   }
 
@@ -1810,6 +1818,9 @@ public class HRegionServer extends HasThread implements
     @Override
     protected void chore() {
       final StringBuilder whyFlush = new StringBuilder();
+//      Pair<Scope, Span> SSPair = null;
+//      try{
+//      SSPair = TraceUtil.createTrace("Scheduled chore:Periodic MEmstore Flusher chore");
       for (HRegion r : this.server.onlineRegions.values()) {
         if (r == null) continue;
         if (r.shouldFlush(whyFlush)) {
@@ -1820,13 +1831,19 @@ public class HRegionServer extends HasThread implements
             //is a balanced write-load on the regions in a table, we might end up
             //overwhelming the filesystem with too many flushes at once.
             if (requester.requestDelayedFlush(r, randomDelay, false)) {
-              LOG.info("{} requesting flush of {} because {} after random delay {} ms",
-                  getName(), r.getRegionInfo().getRegionNameAsString(),  whyFlush.toString(),
-                  randomDelay);
+              LOG.info("{} requesting flush of {} because {} after random delay {} ms", getName(),
+                r.getRegionInfo().getRegionNameAsString(), whyFlush.toString(), randomDelay);
             }
           }
         }
       }
+//    }finally {
+//        if(SSPair!=null)
+//        {
+//          SSPair.getFirst().close();
+//          SSPair.getSecond().finish();
+//        }
+//      }
     }
   }
 
@@ -3093,13 +3110,24 @@ public class HRegionServer extends HasThread implements
    * @return Online regions from <code>tableName</code>
    */
   @Override
-  public List<HRegion> getRegions(TableName tableName) {
+  public List<HRegion> getRegions(TableName tableName)
+  {
      List<HRegion> tableRegions = new ArrayList<>();
      synchronized (this.onlineRegions) {
-       for (HRegion region: this.onlineRegions.values()) {
-         RegionInfo regionInfo = region.getRegionInfo();
-         if(regionInfo.getTable().equals(tableName)) {
-           tableRegions.add(region);
+       Pair<Scope,Span> SSPair= null;
+       try {
+         TraceUtil.createTrace("Getting all the regions where table " + tableName + " resides");
+         for (HRegion region : this.onlineRegions.values()) {
+           RegionInfo regionInfo = region.getRegionInfo();
+           if (regionInfo.getTable().equals(tableName)) {
+             tableRegions.add(region);
+           }
+         }
+       }finally{
+         if(SSPair!=null)
+         {
+           SSPair.getFirst().close();
+           SSPair.getSecond().finish();
          }
        }
      }

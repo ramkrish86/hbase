@@ -193,23 +193,23 @@
             difficult to debug classpath errors for downstream. Unfortunately, that
             means inspecting all the jars.
             -->
-          <execution>
-            <id>check-jar-contents-for-stuff-with-hadoop</id>
-            <phase>integration-test</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <configuration>
-              <executable>${shell-executable}</executable>
-              <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-              <requiresOnline>false</requiresOnline>
-              <arguments>
-                <argument>ensure-jars-have-correct-contents.sh</argument>
-                <argument>--allow-hadoop</argument>
-                <argument>${hbase-client-artifacts}</argument>
-              </arguments>
-            </configuration>
-          </execution>
+<!--          <execution>-->
+<!--            <id>check-jar-contents-for-stuff-with-hadoop</id>-->
+<!--            <phase>integration-test</phase>-->
+<!--            <goals>-->
+<!--              <goal>exec</goal>-->
+<!--            </goals>-->
+<!--            <configuration>-->
+<!--              <executable>${shell-executable}</executable>-->
+<!--              <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>-->
+<!--              <requiresOnline>false</requiresOnline>-->
+<!--              <arguments>-->
+<!--                <argument>ensure-jars-have-correct-contents.sh</argument>-->
+<!--                <argument>&#45;&#45;allow-hadoop</argument>-->
+<!--                <argument>${hbase-client-artifacts}</argument>-->
+<!--              </arguments>-->
+<!--            </configuration>-->
+<!--          </execution>-->
         </executions>
       </plugin>
     </plugins>

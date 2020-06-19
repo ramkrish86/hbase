@@ -204,25 +204,25 @@
             difficult to debug classpath errors for downstream. Unfortunately, that
             means inspecting all the jars.
             -->
-          <execution>
-            <id>check-jar-contents</id>
-            <phase>integration-test</phase>
-            <goals>
-              <goal>exec</goal>
-            </goals>
-            <configuration>
-              <executable>${shell-executable}</executable>
-              <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>
-              <requiresOnline>false</requiresOnline>
-              <!-- Important that we don't pass the 'allow-hadoop' flag here, because
-                   we allowed it as a provided dependency above.
-                -->
-              <arguments>
-                <argument>ensure-jars-have-correct-contents.sh</argument>
-                <argument>${hbase-client-artifacts}</argument>
-              </arguments>
-            </configuration>
-          </execution>
+<!--          <execution>-->
+<!--            <id>check-jar-contents</id>-->
+<!--            <phase>integration-test</phase>-->
+<!--            <goals>-->
+<!--              <goal>exec</goal>-->
+<!--            </goals>-->
+<!--            <configuration>-->
+<!--              <executable>${shell-executable}</executable>-->
+<!--              <workingDirectory>${project.build.testOutputDirectory}</workingDirectory>-->
+<!--              <requiresOnline>false</requiresOnline>-->
+<!--              &lt;!&ndash; Important that we don't pass the 'allow-hadoop' flag here, because-->
+<!--                   we allowed it as a provided dependency above.-->
+<!--                &ndash;&gt;-->
+<!--              <arguments>-->
+<!--                <argument>ensure-jars-have-correct-contents.sh</argument>-->
+<!--                <argument>${hbase-client-artifacts}</argument>-->
+<!--              </arguments>-->
+<!--            </configuration>-->
+<!--          </execution>-->
         </executions>
       </plugin>
     </plugins>

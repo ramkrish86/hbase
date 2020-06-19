@@ -68,6 +68,7 @@ import org.apache.hadoop.hbase.trace.AlwaysSampler;
 import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.LoadTestTool;
+import org.apache.hadoop.hbase.util.Pair;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -430,20 +431,22 @@ public class IntegrationTestMTTR {
       while (numAfterDone < maxIterations) {
         long start = System.nanoTime();
         Span span = null;
-        try (Scope scope = TraceUtil.createTrace(getSpanName())) {
-          if (scope != null) {
-            span =  TraceUtil.getTracer().scopeManager().activeSpan();
+        Pair<Scope, Span> SSPair = null;
+        try {
+          SSPair = TraceUtil.createTrace(getSpanName());
+          if (SSPair.getFirst() != null) {
+            span = TraceUtil.getTracer().scopeManager().activeSpan();
           }
           boolean actionResult = doAction();
           if (actionResult && future.isDone()) {
             numAfterDone++;
           }
 
-        // the following Exceptions derive from DoNotRetryIOException. They are considered
-        // fatal for the purpose of this test. If we see one of these, it means something is
-        // broken and needs investigation. This is not the case for all children of DNRIOE.
-        // Unfortunately, this is an explicit enumeration and will need periodically refreshed.
-        // See HBASE-9655 for further discussion.
+          // the following Exceptions derive from DoNotRetryIOException. They are considered
+          // fatal for the purpose of this test. If we see one of these, it means something is
+          // broken and needs investigation. This is not the case for all children of DNRIOE.
+          // Unfortunately, this is an explicit enumeration and will need periodically refreshed.
+          // See HBASE-9655 for further discussion.
         } catch (AccessDeniedException e) {
           throw e;
         } catch (CoprocessorException e) {
@@ -462,22 +465,27 @@ public class IntegrationTestMTTR {
           throw e;
         } catch (TableNotFoundException e) {
           throw e;
-        } catch (RetriesExhaustedException e){
+        } catch (RetriesExhaustedException e) {
           throw e;
 
-        // Everything else is potentially recoverable on the application side. For instance, a CM
-        // action kills the RS that hosted a scanner the client was using. Continued use of that
-        // scanner should be terminated, but a new scanner can be created and the read attempted
-        // again.
+          // Everything else is potentially recoverable on the application side. For instance, a CM
+          // action kills the RS that hosted a scanner the client was using. Continued use of that
+          // scanner should be terminated, but a new scanner can be created and the read attempted
+          // again.
         } catch (Exception e) {
           resetCount++;
           if (resetCount < maxIterations) {
-            LOG.info("Non-fatal exception while running " + this.toString()
-              + ". Resetting loop counter", e);
+            LOG.info("Non-fatal exception while running " + this.toString() + ". Resetting loop counter",
+              e);
             numAfterDone = 0;
           } else {
             LOG.info("Too many unexpected Exceptions. Aborting.", e);
             throw e;
+          }
+        } finally {
+          if (SSPair != null) {
+            SSPair.getFirst().close();
+            SSPair.getSecond().finish();
           }
         }
         result.addResult(System.nanoTime() - start, span);
