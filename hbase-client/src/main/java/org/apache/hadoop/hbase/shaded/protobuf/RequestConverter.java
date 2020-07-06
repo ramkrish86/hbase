@@ -68,6 +68,7 @@ import org.apache.hbase.thirdparty.com.google.protobuf.UnsafeByteOperations;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.ClearCompactionQueuesRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.ClearRegionBlockCacheRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CompactRegionRequest;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.EnableTracesRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.FlushRegionRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetOnlineRegionRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.GetRegionInfoRequest;
@@ -858,6 +859,14 @@ public final class RequestConverter {
     }
     return builder.build();
   }
+
+  public static EnableTracesRequest buildEnableTracesRequest(ServerName rserver, boolean value) {
+    EnableTracesRequest.Builder builder = EnableTracesRequest.newBuilder();
+    builder.setRServer(ProtobufUtil.toServerName(rserver));
+    builder.setValue(value);
+    return builder.build();
+  }
+
 
   /**
    * @see #buildRollWALWriterRequest()

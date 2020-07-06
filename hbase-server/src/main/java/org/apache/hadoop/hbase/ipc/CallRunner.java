@@ -19,6 +19,7 @@ package org.apache.hadoop.hbase.ipc;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
+import java.security.acl.LastOwnerException;
 import java.util.Optional;
 
 import io.opentracing.Scope;
@@ -119,7 +120,7 @@ public class CallRunner {
       String error = null;
       Pair<Message, CellScanner> resultPair = null;
       RpcServer.CurCall.set(call);
-      Scope traceScope = null;
+      Pair<Scope,Span> traceScope = null;
       try {
         if (!this.rpcServer.isStarted()) {
           InetSocketAddress address = rpcServer.getListenerAddress();
@@ -131,9 +132,12 @@ public class CallRunner {
         String methodName = (call.getMethod() != null) ? call.getMethod().getName() : "";
         String traceString = serviceName + "." + methodName;
         TraceUtil.LOG.debug("The tracestring is "+traceString);
-        traceScope = TraceUtil.createTrace(traceString, call.getSpanContext());
+
+//        traceScope = TraceUtil.createTrace(traceString, call.getSpanContext());
+        traceScope= TraceUtil.createTrace(traceString);
         // make the call
         resultPair = this.rpcServer.call(call, this.status);
+        RpcServer.LOG.info("call qqqq is "+call.toShortString());
       } catch (TimeoutIOException e){
         RpcServer.LOG.warn("Can not complete this request in time, drop it: " + call);
         return;
@@ -153,15 +157,17 @@ public class CallRunner {
           throw (Error)e;
         }
       } finally {
-        if (traceScope != null) {
-         // Span span = traceScope.span();
-          //TraceUtil.LOG.debug("The final trace is "+span.toString());
-          traceScope.close();
-        }
+
         RpcServer.CurCall.set(null);
         if (resultPair != null) {
           this.rpcServer.addCallSize(call.getSize() * -1);
           sucessful = true;
+        }
+        if (traceScope != null) {
+          // Span span = traceScope.span();
+          //TraceUtil.LOG.debug("The final trace is "+span.toString());
+          traceScope.getFirst().close();
+          traceScope.getSecond().finish();
         }
       }
       // return back the RPC request read BB we can do here. It is done by now.

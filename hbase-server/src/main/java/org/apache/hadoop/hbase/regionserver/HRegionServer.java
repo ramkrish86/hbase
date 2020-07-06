@@ -1756,9 +1756,9 @@ public class HRegionServer extends HasThread implements
 
     @Override
     protected void chore() {
-//      Pair<Scope, Span> SSPair=null;
+//      Pair<Scope, Span> tracePair=null;
 //      try {
-//        SSPair = TraceUtil.createTrace("HRegionServer:Scheduled_Chore:Compaction_checker");
+//        tracePair = TraceUtil.createTrace("HRegionServer:Scheduled_Chore:Compaction_checker");
         for (Region r : this.instance.onlineRegions.values()) {
           if (r == null) {
             continue;
@@ -1791,10 +1791,10 @@ public class HRegionServer extends HasThread implements
         }
         iteration = (iteration == Long.MAX_VALUE) ? 0 : (iteration + 1);
 //      }finally{
-//        if(SSPair!=null)
+//        if(tracePair!=null)
 //        {
-//          SSPair.getFirst().close();
-//          SSPair.getSecond().finish();
+//          tracePair.getFirst().close();
+//          tracePair.getSecond().finish();
 //        }
 //      }
     }
@@ -1818,9 +1818,9 @@ public class HRegionServer extends HasThread implements
     @Override
     protected void chore() {
       final StringBuilder whyFlush = new StringBuilder();
-//      Pair<Scope, Span> SSPair = null;
+//      Pair<Scope, Span> tracePair = null;
 //      try{
-//      SSPair = TraceUtil.createTrace("Scheduled chore:Periodic MEmstore Flusher chore");
+//      tracePair = TraceUtil.createTrace("Scheduled chore:Periodic MEmstore Flusher chore");
       for (HRegion r : this.server.onlineRegions.values()) {
         if (r == null) continue;
         if (r.shouldFlush(whyFlush)) {
@@ -1838,10 +1838,10 @@ public class HRegionServer extends HasThread implements
         }
       }
 //    }finally {
-//        if(SSPair!=null)
+//        if(tracePair!=null)
 //        {
-//          SSPair.getFirst().close();
-//          SSPair.getSecond().finish();
+//          tracePair.getFirst().close();
+//          tracePair.getSecond().finish();
 //        }
 //      }
     }
@@ -3114,7 +3114,7 @@ public class HRegionServer extends HasThread implements
   {
      List<HRegion> tableRegions = new ArrayList<>();
      synchronized (this.onlineRegions) {
-       Pair<Scope,Span> SSPair= null;
+       Pair<Scope,Span> tracePair= null;
        try {
          TraceUtil.createTrace("Getting all the regions where table " + tableName + " resides");
          for (HRegion region : this.onlineRegions.values()) {
@@ -3124,10 +3124,10 @@ public class HRegionServer extends HasThread implements
            }
          }
        }finally{
-         if(SSPair!=null)
+         if(tracePair!=null)
          {
-           SSPair.getFirst().close();
-           SSPair.getSecond().finish();
+           tracePair.getFirst().close();
+           tracePair.getSecond().finish();
          }
        }
      }

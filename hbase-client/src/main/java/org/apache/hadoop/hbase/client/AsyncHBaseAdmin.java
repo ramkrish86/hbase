@@ -296,7 +296,10 @@ class AsyncHBaseAdmin implements AsyncAdmin {
   public CompletableFuture<Void> compactRegionServer(ServerName serverName) {
     return wrap(rawAdmin.compactRegionServer(serverName));
   }
-
+  @Override
+  public CompletableFuture<Void> enableTraces(ServerName RServer,boolean value) {
+    return wrap(rawAdmin.enableTraces(RServer,value));
+  }
   @Override
   public CompletableFuture<Void> majorCompactRegionServer(ServerName serverName) {
     return wrap(rawAdmin.majorCompactRegionServer(serverName));

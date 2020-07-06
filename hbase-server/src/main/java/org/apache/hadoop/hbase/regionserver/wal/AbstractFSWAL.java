@@ -782,15 +782,15 @@ public abstract class AbstractFSWAL<W extends WriterBase> implements WAL {
   @VisibleForTesting
   Path replaceWriter(Path oldPath, Path newPath, W nextWriter) throws IOException {
 
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("FSHFile.replaceWriter");
+      tracePair = TraceUtil.createTrace("FSHFile.replaceWriter");
       doReplaceWriter(oldPath, newPath, nextWriter);
       return newPath;
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -842,9 +842,9 @@ public abstract class AbstractFSWAL<W extends WriterBase> implements WAL {
         return null;
       }
       byte[][] regionsToFlush = null;
-      Pair<Scope, Span> SSPair = null;
+      Pair<Scope, Span> tracePair = null;
       try {
-        SSPair = TraceUtil.createTrace("FSHLog.rollWriter");
+        tracePair = TraceUtil.createTrace("FSHLog.rollWriter");
         Path oldPath = getOldPath();
         Path newPath = getNewPath();
         // Any exception from here on is catastrophic, non-recoverable so we currently abort.
@@ -870,9 +870,9 @@ public abstract class AbstractFSWAL<W extends WriterBase> implements WAL {
         throw new IOException("Underlying FileSystem can't meet stream requirements. See RS log " + "for details.",
           exception);
       } finally {
-        if (SSPair != null) {
-          SSPair.getFirst().close();
-          SSPair.getSecond().finish();
+        if (tracePair != null) {
+          tracePair.getFirst().close();
+          tracePair.getSecond().finish();
         }
       }
       return regionsToFlush;
@@ -1090,18 +1090,18 @@ public abstract class AbstractFSWAL<W extends WriterBase> implements WAL {
     long txid = txidHolder.longValue();
     ServerCall<?> rpcCall = RpcServer.getCurrentCall().filter(c -> c instanceof ServerCall)
       .filter(c -> c.getCellScanner() != null).map(c -> (ServerCall) c).orElse(null);
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace(implClassName + ".append");
+      tracePair = TraceUtil.createTrace(implClassName + ".append");
       FSWALEntry entry = new FSWALEntry(txid, key, edits, hri, inMemstore, rpcCall);
       entry.stampRegionSequenceId(we);
       ringBuffer.get(txid).load(entry);
     } finally {
       ringBuffer.publish(txid);
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
     return txid;

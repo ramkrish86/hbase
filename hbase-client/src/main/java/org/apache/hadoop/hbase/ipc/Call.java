@@ -75,9 +75,9 @@ class Call {
     this.timeout = timeout;
     this.priority = priority;
     this.callback = callback;
-    System.out.println("The global span is "+GlobalTracer.get() + " "+md);
-    this.span = TraceUtil.getTracer().activeSpan();
-    System.out.println("The span in call is "+span);
+//    System.out.println("The global span is "+GlobalTracer.get() + " "+md);
+    this.span = TraceUtil.getTracer()!=null?TraceUtil.getTracer().activeSpan():null;
+//    System.out.println("The span in call is "+span);
   }
 
   /**

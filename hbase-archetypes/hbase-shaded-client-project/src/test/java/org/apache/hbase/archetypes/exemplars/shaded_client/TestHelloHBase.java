@@ -105,59 +105,59 @@ public class TestHelloHBase {
   @Test
   public void testPutRowToTable() throws IOException {
     Admin admin = TEST_UTIL.getAdmin();
-    Pair<Scope, Span> SSPair= null;
+    Pair<Scope, Span> tracePair= null;
     try{
-      SSPair=TraceUtil.createTrace("create namespace " + HelloHBase.MY_NAMESPACE_NAME);
+      tracePair=TraceUtil.createTrace("create namespace " + HelloHBase.MY_NAMESPACE_NAME);
       admin.createNamespace(
         NamespaceDescriptor.create(HelloHBase.MY_NAMESPACE_NAME).build());
     }
     finally
     {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
 
     Table table;
     try {
-      SSPair=TraceUtil.createTrace("create table " + HelloHBase.MY_TABLE_NAME);
+      tracePair=TraceUtil.createTrace("create table " + HelloHBase.MY_TABLE_NAME);
       table = TEST_UTIL.createTable(HelloHBase.MY_TABLE_NAME, HelloHBase.MY_COLUMN_FAMILY_NAME);
     }
     finally
     {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
     HelloHBase.putRowToTable(table);
     Result row = table.get(new Get(HelloHBase.MY_ROW_ID));
     assertEquals("#putRowToTable failed to store row.", false, row.isEmpty());
     try {
-      SSPair=TraceUtil.createTrace("delete table " + HelloHBase.MY_TABLE_NAME);
+      tracePair=TraceUtil.createTrace("delete table " + HelloHBase.MY_TABLE_NAME);
       TEST_UTIL.deleteTable(HelloHBase.MY_TABLE_NAME);
     }
     finally
     {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
     try{
-      SSPair= TraceUtil.createTrace("delete namespace " + HelloHBase.MY_NAMESPACE_NAME);
+      tracePair= TraceUtil.createTrace("delete namespace " + HelloHBase.MY_NAMESPACE_NAME);
       admin.deleteNamespace(HelloHBase.MY_NAMESPACE_NAME);
     }
     finally
     {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }

@@ -65,10 +65,17 @@ public final class TraceUtil {
   public static final String HBASE_OPENTRACING_TRACER = "hbase.opentracing.tracer";
   public static final String HBASE_OPENTRACING_TRACER_DEFAULT = "jaeger";
   public static final String HBASE_OPENTRACING_MOCKTRACER = "mock";
-
+  public static volatile boolean isclosed = false;
+  private static Tracer foul_tracer=TraceShim.createTracerShim();
   private TraceUtil() {
   }
-
+  public static void close()
+  {
+    isclosed=true;
+  }
+  public static void start() {
+    isclosed=false;
+  }
   public static void initTracer(Configuration c, String serviceName) {
     /*if (c != null) {
       conf = new HBaseHTraceConfiguration(c);
@@ -93,10 +100,13 @@ public final class TraceUtil {
             tracerProvider.addSpanProcessor(SimpleSpanProcessor.newBuilder(exporter).build());
 
             tracer = TraceShim.createTracerShim(tracerProvider, new CorrelationContextManagerSdk());
-
+            if(isclosed)
+              tracer=foul_tracer;
             break;
           case HBASE_OPENTRACING_MOCKTRACER:
             tracer = new MockTracer();
+            if(isclosed)
+              tracer.close();
             break;
           default:
             throw new RuntimeException("Unexpected tracer");
@@ -113,6 +123,8 @@ public final class TraceUtil {
   }
 
   public static Tracer getTracer() {
+    if(isclosed)
+      return foul_tracer;
     return tracer;
   }
   
@@ -156,9 +168,9 @@ public final class TraceUtil {
       //LOG.warn("no existing span. Please trace the code and find out where to initialize the span " +description);
     }
     Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).start();
-    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
+    Pair<Scope,Span> tracePair = new Pair (getTracer().scopeManager().activate(span),span);
     if(span != null) {
-      return SSPair;
+      return tracePair;
     }
     return null;
   }
@@ -175,10 +187,7 @@ public final class TraceUtil {
     }
     span =  (getTracer() == null) ? null
         : getTracer().buildSpan(description).asChildOf(span).start();
-//    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
-
     if(span != null) {
-//      return SSPair;
       return getTracer().scopeManager().activate(span);
     }
     return null;
@@ -189,9 +198,7 @@ public final class TraceUtil {
 
     Span span  = (getTracer() == null) ? null : getTracer().buildSpan(description).
         asChildOf(spanContext).start();
-//    Pair<Scope,Span> SSPair = new Pair (getTracer().scopeManager().activate(span),span);
     if(span != null) {
-//      return SSPair;
       return getTracer().scopeManager().activate(span);
     }
     return null;
@@ -200,13 +207,13 @@ public final class TraceUtil {
   public static void main(String[] args) {
     // SenderResolver.resolve();
     TraceUtil.initTracer(new Configuration(), "test");
-    Pair<Scope,Span> SSPair=null;
+    Pair<Scope,Span> tracePair=null;
     try {
-      SSPair = createTrace("test");
+      tracePair = createTrace("test");
       addTimelineAnnotation("testmsg");
     } finally {
-      SSPair.getFirst().close();
-      SSPair.getSecond().finish();
+      tracePair.getFirst().close();
+      tracePair.getSecond().finish();
       //scope.().finish();
     }
   }

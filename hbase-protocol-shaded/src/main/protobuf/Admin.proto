@@ -30,6 +30,14 @@ import "HBase.proto";
 import "WAL.proto";
 import "Quota.proto";
 
+message EnableTracesRequest{
+  required ServerName RServer = 1;
+  // True if want to enable traces and false if want to disable
+  required bool value = 2;
+}
+message EnableTracesResponse{
+}
+
 message GetRegionInfoRequest {
   required RegionSpecifier region = 1;
   optional bool compaction_state = 2;
@@ -344,4 +352,7 @@ service AdminService {
 
   rpc ExecuteProcedures(ExecuteProceduresRequest)
     returns(ExecuteProceduresResponse);
+
+  rpc EnableTraces(EnableTracesRequest)
+    returns(EnableTracesResponse);
 }

@@ -97,7 +97,9 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
   private final int minVersions;
   private final long maxRowSize;
   private final long cellsPerHeartbeatCheck;
+  /* there seems an undetected flow so changing the trace*/
 
+//  Pair<Scope,Span> tracePair=null;
   // 1) Collects all the KVHeap that are eagerly getting closed during the
   //    course of a scan
   // 2) Collects the unused memstore scanners. If we close the memstore scanners
@@ -178,6 +180,8 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     this.now = EnvironmentEdgeManager.currentTime();
     this.oldestUnexpiredTS = scan.isRaw() ? 0L : now - scanInfo.getTtl();
     this.minVersions = scanInfo.getMinVersions();
+    //removed cause trace is not closing
+//    this.tracePair=TraceUtil.createTrace("StoreScanner : Constructor");
 
     // We look up row-column Bloom filters for multi-column queries as part of
     // the seek operation. However, we also look the row-column Bloom filter
@@ -241,9 +245,9 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     store.addChangedReaderObserver(this);
 
     List<KeyValueScanner> scanners = null;
-    Pair<Scope,Span> SSPair=null;
+    Pair<Scope,Span> tracePair=null;
     try {
-      SSPair=TraceUtil.createTrace("Get scanner across store");
+      tracePair=TraceUtil.createTrace("StoreScanner : StoreScanner");
       // Pass columns to try to filter out unnecessary StoreFiles.
       scanners = selectScannersFrom(store,
         store.getScanners(cacheBlocks, scanUsePread, false, matcher, scan.getStartRow(),
@@ -271,10 +275,10 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
       store.deleteChangedReaderObserver(this);
       throw e;
     }finally{
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -520,6 +524,15 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     } finally {
       closeLock.unlock();
     }
+    //removed cause trace is not closing
+
+//    if(tracePair != null && withDelayedScannersClose)
+//    {
+//      LOG.info("zzzzzzzzzzzzzzzzzzzzzzzzzzz");
+//
+//      tracePair.getFirst().close();
+//      tracePair.getSecond().finish();
+//    }
   }
 
   @Override
@@ -902,9 +915,9 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
     }
     boolean updateReaders = false;
     flushLock.lock();
-    Pair<Scope, Span> SSPair= null;
+    Pair<Scope, Span> tracePair= null;
     try {
-      SSPair= TraceUtil.createTrace("Storescanners:UpdateReaders (closing scanners)");
+      tracePair= TraceUtil.createTrace("Storescanners:UpdateReaders (closing scanners)");
       if (!closeLock.tryLock()) {
         // The reason for doing this is that when the current store scanner does not retrieve
         // any new cells, then the scanner is considered to be done. The heap of this scanner
@@ -944,10 +957,10 @@ public class StoreScanner extends NonReversedNonLazyKeyValueScanner
       if (updateReaders) {
         closeLock.unlock();
       }
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
     // Let the next() call handle re-creating and seeking

@@ -167,7 +167,7 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.delete")) {
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.delete")) {
       RetryCounter retryCounter = retryCounterFactory.create();
       boolean isRetry = false; // False for first attempt, true for all retries.
       while (true) {
@@ -199,7 +199,7 @@ public class RecoverableZooKeeper {
         retryCounter.sleepUntilNextRetry();
         isRetry = true;
       }
-    }
+//    }
   }
 
   /**
@@ -218,8 +218,8 @@ public class RecoverableZooKeeper {
     if (watcher != null) {
       ((ZKWatcher) watcher).setSpan(TraceUtil.getTracer().activeSpan());
     }
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.exists")) {
-      RetryCounter retryCounter = retryCounterFactory.create();
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.exists")) {
+    RetryCounter retryCounter = retryCounterFactory.create();
       while (true) {
         try {
           Stat nodeStat;
@@ -244,7 +244,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   /**
@@ -282,8 +282,8 @@ public class RecoverableZooKeeper {
     if (watcher != null) {
       ((ZKWatcher) watcher).setSpan(TraceUtil.getTracer().activeSpan());
     }
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getChildren")) {
-      RetryCounter retryCounter = retryCounterFactory.create();
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getChildren")) {
+    RetryCounter retryCounter = retryCounterFactory.create();
       while (true) {
         try {
           List<String> children;
@@ -308,7 +308,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   /**
@@ -337,8 +337,8 @@ public class RecoverableZooKeeper {
     if (watcher != null) {
       ((ZKWatcher) watcher).setSpan(TraceUtil.getTracer().activeSpan());
     }
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getData")) {
-      RetryCounter retryCounter = retryCounterFactory.create();
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getData")) {
+    RetryCounter retryCounter = retryCounterFactory.create();
       while (true) {
         try {
           byte[] revData;
@@ -363,7 +363,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   /**
@@ -386,7 +386,7 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.setData")) {
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.setData")) {
       RetryCounter retryCounter = retryCounterFactory.create();
       byte[] newData = ZKMetadata.appendMetaData(id, data);
       boolean isRetry = false;
@@ -424,7 +424,7 @@ public class RecoverableZooKeeper {
         retryCounter.sleepUntilNextRetry();
         isRetry = true;
       }
-    }
+//    }
   }
 
   /**
@@ -436,8 +436,8 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getAcl")) {
-      RetryCounter retryCounter = retryCounterFactory.create();
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.getAcl")) {
+    RetryCounter retryCounter = retryCounterFactory.create();
       while (true) {
         try {
           return checkZk().getACL(path, stat);
@@ -456,7 +456,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   /**
@@ -468,7 +468,7 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.setAcl")) {
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.setAcl")) {
       RetryCounter retryCounter = retryCounterFactory.create();
       while (true) {
         try {
@@ -488,7 +488,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   /**
@@ -512,7 +512,7 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.create")) {
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.create")) {
       byte[] newData = ZKMetadata.appendMetaData(id, data);
       switch (createMode) {
         case EPHEMERAL:
@@ -527,7 +527,7 @@ public class RecoverableZooKeeper {
           throw new IllegalArgumentException("Unrecognized CreateMode: " +
               createMode);
       }
-    }
+//    }
   }
 
   private String createNonSequential(String path, byte[] data, List<ACL> acl,
@@ -644,7 +644,7 @@ public class RecoverableZooKeeper {
     /*if (GlobalTracer.get().activeSpan() == null) {
       assert(false);
     }*/
-    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.multi")) {
+//    try (Scope scope = TraceUtil.createRootTrace("RecoverableZookeeper.multi")) {
       RetryCounter retryCounter = retryCounterFactory.create();
       Iterable<Op> multiOps = prepareZKMulti(ops);
       while (true) {
@@ -665,7 +665,7 @@ public class RecoverableZooKeeper {
         }
         retryCounter.sleepUntilNextRetry();
       }
-    }
+//    }
   }
 
   private String findPreviousSequentialNode(String path)

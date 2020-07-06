@@ -774,9 +774,9 @@ public class MetaTableAccessor {
     }
 
     int currentRow = 0;
-//    Pair<Scope, Span> SSPair= null;
+//    Pair<Scope, Span> tracePair= null;
     try (Table metaTable = getMetaHTable(connection)) {
-//      SSPair = TraceUtil.createTrace("Scanning META ");
+//      tracePair = TraceUtil.createTrace("Scanning META ");
       try (ResultScanner scanner = metaTable.getScanner(scan)) {
         Result data;
         while ((data = scanner.next()) != null) {
@@ -788,10 +788,10 @@ public class MetaTableAccessor {
       }
     }
     finally{
-//      if(SSPair!=null)
+//      if(tracePair!=null)
 //      {
-//        SSPair.getFirst().close();
-//        SSPair.getSecond().finish();
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
 //      }
     }
     if (visitor instanceof Closeable) {

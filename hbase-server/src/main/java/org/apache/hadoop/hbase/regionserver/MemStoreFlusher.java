@@ -701,9 +701,9 @@ class MemStoreFlusher implements FlushRequester {
    * amount of memstore consumption.
    */
   public void reclaimMemStoreMemory() {
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("MemStoreFluser.reclaimMemStoreMemory");
+      tracePair = TraceUtil.createTrace("MemStoreFluser.reclaimMemStoreMemory");
       FlushType flushType = isAboveHighWaterMark();
       if (flushType != FlushType.NORMAL) {
         TraceUtil.addKVAnnotation(Time.formatTime(Time.monotonicNow()),"Force Flush. We're above high water mark.");
@@ -779,9 +779,9 @@ class MemStoreFlusher implements FlushRequester {
         }
       }
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }

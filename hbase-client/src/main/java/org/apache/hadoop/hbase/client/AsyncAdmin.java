@@ -448,6 +448,7 @@ public interface AsyncAdmin {
    * @param serverName the region server name
    */
   CompletableFuture<Void> majorCompactRegionServer(ServerName serverName);
+  CompletableFuture<Void> enableTraces(ServerName RServer,boolean value);
 
   /**
    * Turn the Merge switch on or off.

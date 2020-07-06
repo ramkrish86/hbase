@@ -19,22 +19,21 @@
 
 module Shell
   module Commands
-    class CompactRs < Command
+    class EnableTraces < Command
       def help
         <<-EOF
-          Compact all regions on passed regionserver.
+Enable disable traces dynamically for given regionserver
           Examples:
-          Compact all regions on a regionserver:
-          hbase> compact_rs 'host187.example.com,60020'
-          or
-          hbase> compact_rs 'host187.example.com,60020,1289493121758'
-          Major compact all regions on a regionserver:
+          To enable traces
           hbase> compact_rs 'host187.example.com,60020,1289493121758', true
-        EOF
+          To disable traces
+          hbase> compact_rs 'host187.example.com,60020,1289493121758', false
+
+EOF
       end
 
-      def command(regionserver, major)
-        admin.compact_regionserver(regionserver, major)
+      def command(regionserver, value)
+        admin.enableTraces(regionserver,value)
       end
     end
   end

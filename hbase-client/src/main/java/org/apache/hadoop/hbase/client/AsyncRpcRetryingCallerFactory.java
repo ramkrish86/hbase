@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.ServerName;
 import org.apache.hadoop.hbase.TableName;
@@ -68,7 +69,8 @@ class AsyncRpcRetryingCallerFactory {
 
     protected int startLogErrorsCnt = conn.connConf.getStartLogErrorsCnt();
 
-    protected Span span = TraceUtil.getTracer().activeSpan();
+    protected Span span = TraceUtil.getTracer()!= null? TraceUtil.getTracer().activeSpan():null;
+
   }
 
   public class SingleRequestCallerBuilder<T> extends BuilderBase {
@@ -163,7 +165,7 @@ class AsyncRpcRetryingCallerFactory {
       preCheck();
       return new AsyncSingleRequestRpcRetryingCaller<>(retryTimer, conn, tableName, row, replicaId,
         locateType, callable, priority, pauseNs, pauseForCQTBENs, maxAttempts, operationTimeoutNs,
-        rpcTimeoutNs, startLogErrorsCnt, span);
+        rpcTimeoutNs, startLogErrorsCnt,span);
     }
 
     /**

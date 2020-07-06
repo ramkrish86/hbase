@@ -431,10 +431,10 @@ public class IntegrationTestMTTR {
       while (numAfterDone < maxIterations) {
         long start = System.nanoTime();
         Span span = null;
-        Pair<Scope, Span> SSPair = null;
+        Pair<Scope, Span> tracePair = null;
         try {
-          SSPair = TraceUtil.createTrace(getSpanName());
-          if (SSPair.getFirst() != null) {
+          tracePair = TraceUtil.createTrace(getSpanName());
+          if (tracePair.getFirst() != null) {
             span = TraceUtil.getTracer().scopeManager().activeSpan();
           }
           boolean actionResult = doAction();
@@ -483,9 +483,9 @@ public class IntegrationTestMTTR {
             throw e;
           }
         } finally {
-          if (SSPair != null) {
-            SSPair.getFirst().close();
-            SSPair.getSecond().finish();
+          if (tracePair != null) {
+            tracePair.getFirst().close();
+            tracePair.getSecond().finish();
           }
         }
         result.addResult(System.nanoTime() - start, span);

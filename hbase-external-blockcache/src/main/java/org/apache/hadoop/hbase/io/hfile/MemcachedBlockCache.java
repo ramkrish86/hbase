@@ -132,9 +132,9 @@ public class MemcachedBlockCache implements BlockCache {
                             boolean repeat, boolean updateCacheMetrics) {
     // Assume that nothing is the block cache
     HFileBlock result = null;
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("MemcachedBlockCache.getBlock");
+      tracePair = TraceUtil.createTrace("MemcachedBlockCache.getBlock");
       result = client.get(cacheKey.toString(), tc);
     } catch (Exception e) {
       // Catch a pretty broad set of exceptions to limit any changes in the memecache client
@@ -153,9 +153,9 @@ public class MemcachedBlockCache implements BlockCache {
           cacheStats.hit(caching, cacheKey.isPrimary(), cacheKey.getBlockType());
         }
       }
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
 

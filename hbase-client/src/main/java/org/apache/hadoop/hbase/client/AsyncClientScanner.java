@@ -40,6 +40,7 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.metrics.ScanMetrics;
 import org.apache.hadoop.hbase.ipc.HBaseRpcController;
 import org.apache.hadoop.hbase.trace.TraceUtil;
+import org.apache.hadoop.hbase.util.Pair;
 import org.apache.yetus.audience.InterfaceAudience;
 
 import org.apache.hbase.thirdparty.io.netty.util.Timer;
@@ -150,8 +151,9 @@ class AsyncClientScanner {
       incRPCRetriesMetrics(scanMetrics, isRegionServerRemote);
     }
     CompletableFuture<OpenScannerResponse> future = new CompletableFuture<>();
-    try (Scope scannerSpan = TraceUtil.createTrace("callOpenScanner", parent)) {
-      ScanRequest request = RequestConverter.buildScanRequest(loc.getRegion().getRegionName(), scan,
+//    try (Scope scannerSpan = TraceUtil.createTrace("callOpenScanner", parent)) {
+    try{
+    ScanRequest request = RequestConverter.buildScanRequest(loc.getRegion().getRegionName(), scan,
         scan.getCaching(), false);
       stub.scan(controller, request, resp -> {
         if (controller.failed()) {

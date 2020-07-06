@@ -661,9 +661,9 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
 
   @Override
   public void sync(boolean forceSync) throws IOException {
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("AsyncFSWAL.sync");
+      tracePair = TraceUtil.createTrace("AsyncFSWAL.sync");
       long txid = waitingConsumePayloads.next();
       SyncFuture future;
       try {
@@ -678,10 +678,10 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
       }
       blockOnSync(future);
     } finally {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -691,10 +691,10 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
     if (highestSyncedTxid.get() >= txid) {
       return;
     }
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
       // here we do not use ring buffer sequence as txid
-      SSPair = TraceUtil.createTrace("AsyncFSWAL.sync");
+      tracePair = TraceUtil.createTrace("AsyncFSWAL.sync");
       long sequence = waitingConsumePayloads.next();
       SyncFuture future;
       try {
@@ -709,9 +709,9 @@ public class AsyncFSWAL extends AbstractFSWAL<AsyncWriter> {
       }
       blockOnSync(future);
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }

@@ -594,6 +594,8 @@ public interface Admin extends Abortable, Closeable {
   void compact(TableName tableName, byte[] columnFamily, CompactType compactType)
     throws IOException, InterruptedException;
 
+  void enableTraces(ServerName RServer,boolean value) throws IOException,InterruptedException;
+
   /**
    * Major compact a table. Asynchronous operation in that this method requests
    * that a Compaction run and then it returns. It does not wait on the completion of Compaction

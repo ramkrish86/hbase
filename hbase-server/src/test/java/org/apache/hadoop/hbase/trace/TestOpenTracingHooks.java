@@ -81,16 +81,16 @@ public class TestOpenTracingHooks {
   public void testTraceCreateTable() throws Exception {
     Table table;
     MockSpan createTableSpan;
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("creating table");
+      tracePair = TraceUtil.createTrace("creating table");
       createTableSpan = (MockSpan) TraceUtil.getTracer().scopeManager().activeSpan();
       table = TEST_UTIL.createTable(TableName.valueOf(name.getMethodName()), FAMILY_BYTES);
     } finally {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
     // Some table creation is async.  Need to make sure that everything is full in before
@@ -122,12 +122,12 @@ public class TestOpenTracingHooks {
 
     MockSpan putSpan;
     try {
-      SSPair = TraceUtil.createTrace("doing put");
+      tracePair = TraceUtil.createTrace("doing put");
       putSpan = (MockSpan) TraceUtil.getTracer().scopeManager().activeSpan();
       table.put(put);
     } finally {
-      SSPair.getFirst().close();
-      SSPair.getSecond().finish();
+      tracePair.getFirst().close();
+      tracePair.getSecond().finish();
     }
 
     spans = tracer.finishedSpans();

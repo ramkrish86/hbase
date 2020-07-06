@@ -123,9 +123,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
           public void run() {
             ResultScanner rs = null;
             TraceUtil.addSampler(Sampler.ALWAYS);
-            Pair<Scope, Span> SSPair = null;
+            Pair<Scope, Span> tracePair = null;
             try {
-              SSPair = TraceUtil.createTrace("Scan");
+              tracePair = TraceUtil.createTrace("Scan");
               Table ht = util.getConnection().getTable(tableName);
               Scan s = new Scan();
               s.setStartRow(Bytes.toBytes(rowKeyQueue.take()));
@@ -151,9 +151,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
               if (rs != null) {
                 rs.close();
               }
-              if (SSPair != null) {
-                SSPair.getFirst().close();
-                SSPair.getSecond().finish();
+              if (tracePair != null) {
+                tracePair.getFirst().close();
+                tracePair.getSecond().finish();
               }
             }
 
@@ -184,9 +184,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
           long accum = 0;
           TraceUtil.addSampler(Sampler.ALWAYS);
           for (int x = 0; x < 5; x++) {
-            Pair<Scope, Span> SSPair = null;
+            Pair<Scope, Span> tracePair = null;
             try {
-              SSPair = TraceUtil.createTrace("gets");
+              tracePair = TraceUtil.createTrace("gets");
              long rk=rowKeyQueue.take();
               Result r1 = ht.get(new Get(Bytes.toBytes(rk)));
               if (r1 != null) {
@@ -201,9 +201,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
             } catch (IOException | InterruptedException ie) {
               // IGNORED
             } finally {
-              if (SSPair != null) {
-                SSPair.getFirst().close();
-                SSPair.getSecond().finish();
+              if (tracePair != null) {
+                tracePair.getFirst().close();
+                tracePair.getSecond().finish();
               }
             }
           }
@@ -216,14 +216,14 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
 
   private void createTable() throws IOException {
     TraceUtil.addSampler(Sampler.ALWAYS);
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("createTable");
+      tracePair = TraceUtil.createTrace("createTable");
       util.createTable(tableName, familyName);
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -231,16 +231,16 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
   private void deleteTable() throws IOException {
     TraceUtil.addSampler(Sampler.ALWAYS);
 
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("deleteTable");
+      tracePair = TraceUtil.createTrace("deleteTable");
       if (admin.tableExists(tableName)) {
         util.deleteTable(tableName);
       }
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -251,9 +251,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
     byte[] value = new byte[300];
     TraceUtil.addSampler(Sampler.ALWAYS);
     for (int x = 0; x < 5000; x++) {
-      Pair<Scope, Span> SSPair = null;
+      Pair<Scope, Span> tracePair = null;
       try {
-        SSPair = TraceUtil.createTrace("insertData");
+        tracePair = TraceUtil.createTrace("insertData");
         for (int i = 0; i < 5; i++) {
           long rk = random.nextLong();
           rowKeys.add(rk);
@@ -268,9 +268,9 @@ public class IntegrationTestSendTraceRequests extends AbstractHBaseTool {
           admin.flush(tableName);
         }
       } finally {
-        if (SSPair != null) {
-          SSPair.getFirst().close();
-          SSPair.getSecond().finish();
+        if (tracePair != null) {
+          tracePair.getFirst().close();
+          tracePair.getSecond().finish();
         }
       }
     }

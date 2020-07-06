@@ -236,11 +236,7 @@ public class HRegionFileSystem {
    */
   public Collection<StoreFileInfo> getStoreFiles(final String familyName, final boolean validate)
       throws IOException {
-//    Pair<Scope, Span> SSPair=null;
-//    try{
-//      SSPair = TraceUtil.createTrace("HregionFilesystem:GetStoreFiles");
       Path familyDir = getStoreDir(familyName);
-//      TraceUtil.addKVAnnotation("azure check", "Getting Store Files for " + familyName);
       FileStatus[] files = FSUtils.listStatus(this.fs, familyDir);
       if (files == null) {
         if (LOG.isTraceEnabled()) {

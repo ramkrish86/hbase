@@ -163,13 +163,13 @@ public final class ReadOnlyZKClient implements Closeable {
 
     private int retries;
 
-    protected Span span;
+//    protected Span span;
 
     protected ZKTask(String path, CompletableFuture<T> future, String operationType) {
       this.path = path;
       this.future = future;
       this.operationType = operationType;
-      this.span = TraceUtil.getTracer().activeSpan();
+//      this.span = TraceUtil.getTracer().activeSpan();
     }
 
     protected final void onComplete(ZooKeeper zk, int rc, T ret, boolean errorIfNoNode) {
@@ -177,7 +177,7 @@ public final class ReadOnlyZKClient implements Closeable {
 
         @Override
         public void exec(ZooKeeper alwaysNull) {
-          try (Scope scope = TraceUtil.getTracer().scopeManager().activate(span)) {
+//          try (Scope scope = TraceUtil.getTracer().scopeManager().activate(span)) {
             pendingRequests--;
             Code code = Code.get(rc);
             if (code == Code.OK) {
@@ -208,7 +208,7 @@ public final class ReadOnlyZKClient implements Closeable {
                 future.completeExceptionally(KeeperException.create(code, path));
               }
             }
-          }
+//          }
         }
 
         @Override
@@ -269,9 +269,9 @@ public final class ReadOnlyZKClient implements Closeable {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    Pair<Scope, Span> SSPair = null;
-    try {
-      SSPair = TraceUtil.createTrace("ReadOnlyZKClient.get");
+//    Pair<Scope, Span> tracePair = null;
+//    try {
+//      tracePair = TraceUtil.createTrace("ReadOnlyZKClient.get");
       CompletableFuture<byte[]> future = new CompletableFuture<>();
       tasks.add(new ZKTask<byte[]>(path, future, "get") {
 
@@ -281,22 +281,22 @@ public final class ReadOnlyZKClient implements Closeable {
         }
       });
       return future;
-    } finally {
-      if(SSPair!=null)
-      {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
-      }
-    }
+//    } finally {
+//      if(tracePair!=null)
+//      {
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
+//      }
+//    }
   }
 
   public CompletableFuture<Stat> exists(String path) {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    Pair<Scope, Span> SSPair = null;
-    try {
-      SSPair = TraceUtil.createTrace("ReadOnlyZKClient.exists");
+//    Pair<Scope, Span> tracePair = null;
+//    try {
+//      tracePair = TraceUtil.createTrace("ReadOnlyZKClient.exists");
       CompletableFuture<Stat> future = new CompletableFuture<>();
       tasks.add(new ZKTask<Stat>(path, future, "exists") {
 
@@ -305,21 +305,21 @@ public final class ReadOnlyZKClient implements Closeable {
         }
       });
       return future;
-    } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
-      }
-    }
+//    } finally {
+//      if (tracePair != null) {
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
+//      }
+//    }
   }
 
   public CompletableFuture<List<String>> list(String path) {
     if (closed.get()) {
       return FutureUtils.failedFuture(new DoNotRetryIOException("Client already closed"));
     }
-    Pair<Scope, Span> SSPair = null;
-    try {
-      SSPair = TraceUtil.createTrace("ReadOnlyZKClient.list");
+//    Pair<Scope, Span> tracePair = null;
+//    try {
+//      tracePair = TraceUtil.createTrace("ReadOnlyZKClient.list");
       CompletableFuture<List<String>> future = new CompletableFuture<>();
       tasks.add(new ZKTask<List<String>>(path, future, "list") {
 
@@ -330,12 +330,12 @@ public final class ReadOnlyZKClient implements Closeable {
       });
 
       return future;
-    } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
-      }
-    }
+//    } finally {
+//      if (tracePair != null) {
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
+//      }
+//    }
   }
 
   private void closeZk() {

@@ -1316,10 +1316,10 @@ public class HStore implements Store, HeapSize, StoreConfigInformation,
     } finally {
       this.lock.readLock().unlock();
     }
-    Pair<Scope, Span> SSPair=null;
+//    Pair<Scope, Span> tracePair=null;
     try {
       // First the store file scanners
-      SSPair= TraceUtil.createTrace("Getting scanners from HstoreFiles");
+//      tracePair= TraceUtil.createTrace("Getting scanners from HstoreFiles");
       // TODO this used to get the store files in descending order,
       // but now we get them in ascending order, which I think is
       // actually more correct, since memstore get put at the end.
@@ -1338,12 +1338,12 @@ public class HStore implements Store, HeapSize, StoreConfigInformation,
     } catch (Throwable t) {
       clearAndClose(memStoreScanners);
       throw t instanceof IOException ? (IOException) t : new IOException(t);
-    }finally{
-      if(SSPair!=null)
-      {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
-      }
+//    }finally{
+//      if(tracePair!=null)
+//      {
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
+//      }
     }
   }
 

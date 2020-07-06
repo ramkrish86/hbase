@@ -44,7 +44,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 
-import io.opentracing.Scope;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -138,6 +137,8 @@ import org.apache.hadoop.hbase.security.access.AccessChecker;
 import org.apache.hadoop.hbase.security.access.NoopAccessChecker;
 import org.apache.hadoop.hbase.security.access.Permission;
 import org.apache.hadoop.hbase.security.access.ZKPermissionWatcher;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.HBaseProtos;
 import org.apache.hadoop.hbase.trace.TraceUtil;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.DNS;
@@ -180,6 +181,8 @@ import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CloseRegion
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CloseRegionResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CompactRegionRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CompactRegionResponse;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.EnableTracesRequest;
+import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.EnableTracesResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CompactionSwitchRequest;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.CompactionSwitchResponse;
 import org.apache.hadoop.hbase.shaded.protobuf.generated.AdminProtos.ExecuteProceduresRequest;
@@ -1661,31 +1664,46 @@ public class RSRpcServices implements HBaseRPCErrorHandler,
       HRegion region = getRegion(request.getRegion());
       // Quota support is enabled, the requesting user is not system/super user
       // and a quota policy is enforced that disables compactions.
-      if (QuotaUtil.isQuotaEnabled(getConfiguration()) &&
-          !Superusers.isSuperUser(RpcServer.getRequestUser().orElse(null)) &&
-          this.regionServer.getRegionServerSpaceQuotaManager()
-              .areCompactionsDisabled(region.getTableDescriptor().getTableName())) {
-        throw new DoNotRetryIOException(
-            "Compactions on this region are " + "disabled due to a space quota violation.");
+      if (QuotaUtil.isQuotaEnabled(getConfiguration()) && !Superusers
+        .isSuperUser(RpcServer.getRequestUser().orElse(null)) && this.regionServer.getRegionServerSpaceQuotaManager()
+        .areCompactionsDisabled(region.getTableDescriptor().getTableName())) {
+        throw new DoNotRetryIOException("Compactions on this region are " + "disabled due to a space quota violation.");
       }
       region.startRegionOperation(Operation.COMPACT_REGION);
       LOG.info("Compacting " + region.getRegionInfo().getRegionNameAsString());
       boolean major = request.hasMajor() && request.getMajor();
       if (request.hasFamily()) {
         byte[] family = request.getFamily().toByteArray();
-        String log = "User-triggered " + (major ? "major " : "") + "compaction for region " +
-            region.getRegionInfo().getRegionNameAsString() + " and family " +
-            Bytes.toString(family);
+        String log = "User-triggered " + (major ? "major " : "") + "compaction for region " + region
+          .getRegionInfo().getRegionNameAsString() + " and family " + Bytes.toString(family);
         LOG.trace(log);
         region.requestCompaction(family, log, Store.PRIORITY_USER, major,
           CompactionLifeCycleTracker.DUMMY);
       } else {
-        String log = "User-triggered " + (major ? "major " : "") + "compaction for region " +
-            region.getRegionInfo().getRegionNameAsString();
+        String log = "User-triggered " + (major ? "major " : "") + "compaction for region " + region
+          .getRegionInfo().getRegionNameAsString();
         LOG.trace(log);
         region.requestCompaction(log, Store.PRIORITY_USER, major, CompactionLifeCycleTracker.DUMMY);
       }
       return CompactRegionResponse.newBuilder().build();
+    } catch (IOException ie) {
+      throw new ServiceException(ie);
+    }
+  }
+
+  @Override
+  public EnableTracesResponse enableTraces(final RpcController controller,final EnableTracesRequest request)
+    throws ServiceException {
+    try {
+      checkOpen();
+      requestCount.increment();
+      boolean value=request.getValue();
+      if(value){
+        TraceUtil.start();
+      }else{
+        TraceUtil.close();
+      }
+      return EnableTracesResponse.newBuilder().build();
     } catch (IOException ie) {
       throw new ServiceException(ie);
     }

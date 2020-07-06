@@ -514,6 +514,12 @@ public class ThriftAdmin implements Admin {
   }
 
   @Override
+  public void enableTraces(ServerName RServer,boolean value) {
+    throw new NotImplementedException("Enable Traces not supported in ThriftAdmin");
+
+  }
+
+  @Override
   public void majorCompact(TableName tableName) {
     throw new NotImplementedException("majorCompact not supported in ThriftAdmin");
 

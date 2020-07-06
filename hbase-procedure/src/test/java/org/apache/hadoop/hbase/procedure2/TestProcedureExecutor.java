@@ -209,18 +209,18 @@ public class TestProcedureExecutor {
     Procedure[] procs;
     MockSpan procedureParentSpan;
     // create the root span and initialize Procedure objects
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("create procedure");
+      tracePair = TraceUtil.createTrace("create procedure");
       procedureParentSpan = (MockSpan) TraceUtil.getTracer().scopeManager().activeSpan();
       procs = new Procedure[1];
       for (int i = 0; i < procs.length; ++i) {
         procs[i] = new NoopProcedure<TestProcEnv>();
       }
     } finally {
-      if (SSPair != null) {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+      if (tracePair != null) {
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
 

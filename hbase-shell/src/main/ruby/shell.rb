@@ -352,6 +352,7 @@ Shell.load_command_group(
     cleaner_chore_switch
     cleaner_chore_enabled
     compact_rs
+    enable_traces
     compaction_state
     trace
     snapshot_cleanup_switch

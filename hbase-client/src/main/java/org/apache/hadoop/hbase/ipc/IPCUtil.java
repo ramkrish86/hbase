@@ -121,9 +121,9 @@ class IPCUtil {
 			TracingProtos.RPCTInfo.Builder builderRPCTInfo = TracingProtos.RPCTInfo.newBuilder()
 					.setSpanContext(ByteString.copyFrom(TraceUtil.spanContextToByteArray(call.span.context())));
 			builder.setTraceInfo(builderRPCTInfo);
-			TraceUtil.LOG.debug("setting call id " +call.id);
+//			TraceUtil.LOG.debug("setting call id " +call.id);
 		} else {
-			TraceUtil.LOG.debug("the call has no span.");
+//			TraceUtil.LOG.debug("the call has no span.");
 		}
 
     builder.setMethodName(call.md.getName());

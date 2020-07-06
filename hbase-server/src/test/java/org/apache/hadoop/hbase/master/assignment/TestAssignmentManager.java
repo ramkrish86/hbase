@@ -267,15 +267,15 @@ public class TestAssignmentManager extends TestAssignmentManagerBase {
     TableName tableName = TableName.valueOf("trace");
     RegionInfo hri = createRegionInfo(tableName, 1);
     rsDispatcher.setMockRsExecutor(new GoodRsExecutor());
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("Testtrace");
+      tracePair = TraceUtil.createTrace("Testtrace");
       am.assign(hri);
     } finally {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
 

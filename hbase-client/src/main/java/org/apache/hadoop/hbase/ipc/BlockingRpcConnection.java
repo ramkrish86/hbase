@@ -591,10 +591,10 @@ class BlockingRpcConnection extends RpcConnection implements Runnable {
   }
 
   private void tracedWriteRequest(Call call) throws IOException {
-    try (Scope ignored = TraceUtil.createTrace("RpcClientImpl.tracedWriteRequest",
-          call.span)) {
+//    try (Scope ignored = TraceUtil.createTrace("RpcClientImpl.tracedWriteRequest",
+//          call.span)) {
       writeRequest(call);
-    }
+//    }
   }
 
   /**

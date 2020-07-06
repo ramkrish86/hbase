@@ -98,17 +98,17 @@ class ZKAsyncRegistry implements AsyncRegistry {
 
   @Override
   public CompletableFuture<String> getClusterId() {
-//    Pair<Scope, Span> SSPair= null;
+//    Pair<Scope, Span> tracePair= null;
 //    try {
-//      SSPair=TraceUtil.createTrace("getClusterId");
+//      tracePair=TraceUtil.createTrace("getClusterId");
       return getAndConvert(znodePaths.clusterIdZNode, ZKAsyncRegistry::getClusterId);
 //    }
 //    finally
 //    {
-//      if(SSPair!=null)
+//      if(tracePair!=null)
 //      {
-//        SSPair.getFirst().close();
-//        SSPair.getSecond().finish();
+//        tracePair.getFirst().close();
+//        tracePair.getSecond().finish();
 //      }
 //    }
   }

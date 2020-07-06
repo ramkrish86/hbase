@@ -283,6 +283,12 @@ class AdminOverAsyncAdmin implements Admin {
   }
 
   @Override
+  public void enableTraces(ServerName RServer,boolean value)
+    throws IOException {
+    get(admin.enableTraces(RServer,value));
+  }
+
+  @Override
   public void majorCompact(TableName tableName) throws IOException {
     get(admin.majorCompact(tableName));
   }

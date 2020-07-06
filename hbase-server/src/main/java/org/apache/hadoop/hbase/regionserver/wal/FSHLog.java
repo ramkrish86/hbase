@@ -758,15 +758,15 @@ public class FSHLog extends AbstractFSWAL<Writer> {
 
   @Override
   public void sync(boolean forceSync) throws IOException {
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("FSHLog.sync");
-      publishSyncThenBlockOnCompletion(SSPair.getFirst(), forceSync);
+      tracePair = TraceUtil.createTrace("FSHLog.sync");
+      publishSyncThenBlockOnCompletion(tracePair.getFirst(), forceSync);
     } finally {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
@@ -782,15 +782,15 @@ public class FSHLog extends AbstractFSWAL<Writer> {
       // Already sync'd.
       return;
     }
-    Pair<Scope, Span> SSPair = null;
+    Pair<Scope, Span> tracePair = null;
     try {
-      SSPair = TraceUtil.createTrace("FSHLog.sync");
-      publishSyncThenBlockOnCompletion(SSPair.getFirst(), forceSync);
+      tracePair = TraceUtil.createTrace("FSHLog.sync");
+      publishSyncThenBlockOnCompletion(tracePair.getFirst(), forceSync);
     } finally {
-      if(SSPair!=null)
+      if(tracePair!=null)
       {
-        SSPair.getFirst().close();
-        SSPair.getSecond().finish();
+        tracePair.getFirst().close();
+        tracePair.getSecond().finish();
       }
     }
   }
